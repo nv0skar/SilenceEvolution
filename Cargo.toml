@@ -1,0 +1,109 @@
+[package]
+name = "silence"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+rustyrosetta = { git = "https://github.com/nv0skar/RustyRosetta.git", tag = "rustyrosetta_0.0.3", features = [
+    "all",
+] }
+
+waveless_commons = { git = "https://github.com/nv0skar/Waveless.git" }
+waveless_compiler = { git = "https://github.com/nv0skar/Waveless.git" }
+waveless_executor = { git = "https://github.com/nv0skar/Waveless.git" }
+
+tokio = "1.48"
+
+futures = "0.3.31"
+
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+toml = "0.9.8"
+serde_json = "1.0.149"
+serde_with = { version = "3.16", features = ["chrono"] }
+
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+tower = { version = "0.5.3", features = ["full"] }
+tower-http = "0.6.8"
+http = "1.4.0"
+
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio",
+    "runtime-tokio-rustls",
+    "json",
+    "mysql",
+] }
+sea-orm = { version = "1.1.19", features = [
+    "runtime-tokio",
+    "runtime-tokio-rustls",
+    "sqlx-mysql",
+] }
+sea-schema = { version = "0.16.2", features = [
+    "runtime-tokio",
+    "runtime-tokio-rustls",
+    "sqlx-all",
+] }
+
+chrono = { version = "0.4.42", default-features = false, features = [
+    "clock",
+    "serde",
+] }
+
+typetag = "0.2"
+async-trait = "0.1.89"
+dyn-clone = "1.0.20"
+
+smallvec = { version = "1.15", features = ["serde", "write", "const_new"] }
+arrayvec = { version = "0.7", features = ["serde"] }
+stackalloc = "1"
+smallbox = "0.8"
+rclite = "0.4"
+dashmap = { version = "6.1", features = ["serde"] }
+compact_str = { version = "0.9", features = ["serde"] }
+
+mimalloc = { version = "0.1.48", features = ["secure"] }
+
+rand = "0.10"
+
+blake3 = "1.8"
+argon2 = { version = "0.5", default-features = true }
+crc32fast = "1.4"
+
+clap = { version = "4.5", features = ["derive"] }
+
+iocraft = "0.7"
+owo-colors = "4.2"
+
+regex = "1.12.2"
+
+dotenvy = "0.15"
+dotenvy_macro = "0.15"
+
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-appender = "0.2"
+
+hex = "0.4"
+itertools = "0.14"
+
+getset = "0.1"
+nestify = "0.3"
+either = { version = "1.15", features = ["serde"] }
+anyhow = "1.0"
+thiserror = "2.0.18"
+derive_builder = "0.20"
+derive_more = { version = "2.0", features = ["constructor", "display"] }
+
+[profile.dev.package."*"]
+debug = false
+codegen-units = 256
+opt-level = 'z'
+
+[profile.release]
+codegen-units = 256
+lto = true
+opt-level = 'z'
+
+[workspace.lints.rust]
+unexpected_cfgs = "deny"

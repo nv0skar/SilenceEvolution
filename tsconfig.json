@@ -1,0 +1,60 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "bundler",
+        "moduleDetection": "force",
+        "allowImportingTsExtensions": true,
+        "jsx": "preserve",
+        "jsxImportSource": "solid-js",
+        "allowJs": false,
+        "resolveJsonModule": true,
+        "verbatimModuleSyntax": true,
+        "strict": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "useUnknownInCatchVariables": true,
+        "alwaysStrict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "exactOptionalPropertyTypes": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "skipLibCheck": false,
+        "skipDefaultLibCheck": false,
+        "rootDir": "./frontend",
+        "noEmit": true,
+        "removeComments": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "isolatedModules": true,
+        "allowSyntheticDefaultImports": true,
+        "types": [
+            "bun",
+            "bun-types",
+            "vite/client"
+        ],
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "incremental": true,
+        "tsBuildInfoFile": "./.tsbuildinfo"
+    },
+    "include": [
+        "frontend/**/*"
+    ],
+    "exclude": [
+        "src",
+        "node_modules",
+        "target",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+    ]
+}

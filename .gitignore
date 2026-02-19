@@ -1,0 +1,11 @@
+**/.DS_Store
+**/Cargo.lock
+**/package-lock.json
+**/pnpm-lock.yaml
+**/*.rs.bk
+**/bun.lock
+**/.tsbuildinfo
+**/.env
+**/node_modules
+**/target
+**/test
