@@ -68,7 +68,18 @@ async fn try_main() -> Result<ResultContext> {
             if cli.display_endpoints_on_start {
                 let runtime_build = RuntimeCx::acquire().build().read().await;
 
-                let endpoints = runtime_build.endpoints();
+                let mut endpoints = runtime_build.endpoints().to_owned();
+
+                // In the future, injected internal endpoints will be a global static in `waveless_executor`.
+                endpoints.add(
+                    waveless_commons::endpoint::EndpointBuilder::default()
+                        .id(LOGIN_ENDPOINT_ID.to_compact_string())
+                        .route("login".to_compact_string())
+                        .version("internal".to_compact_string())
+                        .auto_generated(true)
+                        .build()
+                        .unwrap(),
+                )?;
 
                 macro_rules! print_bool {
                     ($cond: expr) => {

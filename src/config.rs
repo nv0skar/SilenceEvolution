@@ -3,7 +3,6 @@
 
 use crate::*;
 
-use waveless_commons::auth::AnySessionMethod;
 use waveless_commons::endpoint::*;
 use waveless_commons::*;
 
