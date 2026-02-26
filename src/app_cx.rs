@@ -44,49 +44,112 @@ impl AppCx {
             .unwrap()
     }
 
-    /// Sets the `APP_CX`'s `OnceLock`.
+    /// Sets the `APP_CX`'s `OnceLock`. And sets Waveless' runtime context.
     /// NOTE: If app's context is set this method will panic.
-    pub fn set_cx(self) {
+    pub async fn set_cx(self) -> Result<()> {
+        RuntimeCx::from_build(
+            self.config()
+                .read()
+                .await
+                .to_owned()
+                .into_build(self.build_endpoints().await?),
+        )
+        .await?
+        .set_cx();
+
         if !APP_CX.initialized() {
             APP_CX.set(self).unwrap();
         } else {
             panic!("App's context has already been initialized.");
         }
+
+        Ok(())
     }
 
-    /// Loads the Silence's app's context into the Waveless' runtime context.
-    pub async fn build_runtime() -> Result<()> {
-        let app_cx = Self::acquire();
-
-        // Loads the Silence's app's database into `waveless_commons::databases::DatabasesConnections`.
+    /// Loads the Silence's app's database into the databases manager (`waveless_commons::databases::DatabasesConnections`).
+    pub async fn set_databases<'app_guard>(
+        app_cx: RwLockReadGuard<'app_guard, AppCx>,
+    ) -> Result<()> {
         DatabasesConnections::load(CheapVec::from_vec(vec![
             app_cx.config.read().await.into_database_config(),
         ]))
-        .await?;
+        .await
+    }
 
-        // In the future, endpoint discovery will be `CompilerCx` independent.
-        // In the meanwhile we do this as a workaround.
-        let dummy_build = app_cx
+    /// Loads the Silence's app's settings into the Waveless' runtime context.
+    /// NOTE: this method requires `waveless_executor::RuntimeCx` to be initialized otherwise it will panic.
+    pub async fn set_config<'app_guard, 'runtime_guard>(
+        app_cx: RwLockReadGuard<'app_guard, AppCx>,
+        current_cx: RwLockWriteGuard<'runtime_guard, RuntimeCx>,
+    ) -> Result<()> {
+        let virtual_build = app_cx
             .config
             .read()
             .await
             .to_owned()
             .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
 
-        CompilerCx::new(
-            waveless_commons::project::Project::new(
-                dummy_build.config().to_owned(),
-                waveless_commons::project::Compiler::new("".to_compact_string(), None, None),
-                dummy_build.executor().to_owned(),
-            ),
-            PathBuf::new(),
-        )
-        .set_cx();
+        let mut current_build = current_cx.build().write().await;
+
+        *current_build.config_mut() = virtual_build.config().to_owned();
+        *current_build.executor_mut() = virtual_build.executor().to_owned();
+        *current_build.databases_checksums_mut() = virtual_build.databases_checksums().to_owned();
+
+        Ok(())
+    }
+
+    /// Loads the Silence's app's endpoints into the Waveless' runtime context.
+    /// NOTE: this method requires `waveless_executor::RuntimeCx` to be initialized otherwise it will panic.
+    pub async fn set_endpoints() -> Result<()> {
+        let app_cx = Self::acquire();
+
+        let current_cx = RuntimeCx::acquire();
+
+        let endpoints = app_cx.build_endpoints().await?;
+
+        let mut current_build = current_cx.build().write().await;
+
+        *current_build.endpoints_mut() = endpoints;
+
+        // Clean all previous routers.
+        while let Some(entry) = current_cx.router().iter().next() {
+            current_cx.router().remove(entry.key());
+        }
+
+        // Rebuild endpoints.
+        current_cx.build_router().await?;
+
+        Ok(())
+    }
+
+    /// Converts the Silence's app's endpoints into Waveless' endpoints.
+    async fn build_endpoints(&self) -> Result<waveless_commons::endpoint::Endpoints> {
+        // In the future, endpoint discovery will be `CompilerCx` independent.
+        // In the meanwhile we do this as a workaround.
+        let dummy_build = self
+            .config
+            .read()
+            .await
+            .to_owned()
+            .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
+
+        // Initialie CompilerCx if needed.
+        if !COMPILER_CX.initialized() {
+            CompilerCx::new(
+                waveless_commons::project::Project::new(
+                    dummy_build.config().to_owned(),
+                    waveless_commons::project::Compiler::new("".to_compact_string(), None, None),
+                    dummy_build.executor().to_owned(),
+                ),
+                PathBuf::new(),
+            )
+            .set_cx();
+        }
 
         // Loads user-defined endpoints.
-        let user_endpoints = app_cx.user_endpoints.read().await;
+        let user_endpoints = self.user_endpoints.read().await;
 
-        let mut build_endpoints = waveless_commons::endpoint::Endpoints::new(
+        let mut endpoints = waveless_commons::endpoint::Endpoints::new(
             user_endpoints
                 .iter()
                 .map(|(_, endpoints)| endpoints.to_owned())
@@ -96,10 +159,10 @@ impl AppCx {
         );
 
         // Adds internal endpoints.
-        build_endpoints.merge(INTERNAL_ENDPOINTS.to_owned())?;
+        endpoints.merge(INTERNAL_ENDPOINTS.to_owned())?;
 
         // Discover MySQL schema endpoints.
-        build_endpoints.merge(
+        endpoints.merge(
             discover()
                 .await?
                 .0
@@ -110,32 +173,7 @@ impl AppCx {
                 .unwrap(),
         )?;
 
-        // Setup Waveless' runtime context.
-        let build = app_cx
-            .config
-            .read()
-            .await
-            .to_owned()
-            .into_build(build_endpoints);
-
-        // Check whether the runtime cx has already been set, or set a new one.
-        if RUNTIME_CX.initialized() {
-            let current_cx = RuntimeCx::acquire();
-
-            let mut current_build = current_cx.build().write().await;
-            *current_build = build;
-
-            // Clean all previous routers.
-            while let Some(entry) = current_cx.router().iter().next() {
-                current_cx.router().remove(entry.key());
-            }
-
-            current_cx.build_router().await?
-        } else {
-            RuntimeCx::from_build(build.to_owned()).await?.set_cx();
-        }
-
-        Ok(())
+        Ok(endpoints)
     }
 
     /// Builds the app's context by loading the project

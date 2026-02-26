@@ -60,9 +60,7 @@ async fn try_main() -> Result<ResultContext> {
 
     match app_cx {
         Some(app_cx) => {
-            app_cx.set_cx();
-
-            AppCx::build_runtime().await?;
+            app_cx.set_cx().await?;
 
             if cli.display_endpoints_on_start {
                 let runtime_build = RuntimeCx::acquire().build().read().await;
