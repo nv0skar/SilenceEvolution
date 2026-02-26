@@ -3,6 +3,8 @@
 
 import { defineConfig } from 'vite'
 
+import { resolve } from 'path';
+
 import solid from 'vite-plugin-solid'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -16,11 +18,17 @@ export default defineConfig(({ mode }) => {
         root: './frontend',
         build: {
             outDir: '../target/frontend',
+            assetsDir: 'internal_assets',
             minify: isProd,
             cssMinify: isProd,
             cssCodeSplit: true,
             sourcemap: 'hidden',
             emptyOutDir: true,
+            rollupOptions: {
+                input: {
+                    panel: resolve(__dirname, './frontend/panel/index.html'),
+                }
+            }
 
         },
         plugins: [solid({ hot: true }), tailwindcss({ optimize: true }), imagetools()],

@@ -29,6 +29,8 @@ tower = { version = "0.5.3", features = ["full"] }
 tower-http = "0.6.8"
 http = "1.4.0"
 
+rust-embed-for-web = "11.3.0"
+
 sqlx = { version = "0.8.6", features = [
     "runtime-tokio",
     "runtime-tokio-rustls",

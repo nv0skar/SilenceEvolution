@@ -11,10 +11,9 @@ use std::net::SocketAddr;
 use anyhow::{Result, anyhow};
 use clap::Parser;
 use compact_str::*;
-use http::*;
 use iocraft::prelude::*;
 use mimalloc::MiMalloc;
-use tower::{service_fn, util::BoxCloneService};
+use tower::util::BoxCloneService;
 use tracing::*;
 
 #[global_allocator]
@@ -184,9 +183,7 @@ async fn try_main() -> Result<ResultContext> {
                     Some(addr) => Some(addr.to_owned()),
                     None => cli.addr,
                 },
-                BoxCloneService::new(service_fn(|_| async {
-                    Ok(Response::new("frontend".to_string()))
-                })),
+                BoxCloneService::new(StaticFiles),
             )
             .await?;
         }
