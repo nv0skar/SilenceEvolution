@@ -3,9 +3,6 @@
 
 use crate::*;
 
-use waveless_commons::endpoint::*;
-use waveless_commons::*;
-
 use build::*;
 use project::*;
 
@@ -82,6 +79,7 @@ impl Config {
             Some(DataSchemaDiscoveryConfig::new(
                 Arc::new(MySQLSchemaDiscoveryMethod::new(CheapVec::from_vec(vec![
                     self.origin_table.sessions.to_owned(),
+                    self.origin_table.roles.to_owned(),
                 ]))),
                 true,
                 false,
@@ -91,9 +89,9 @@ impl Config {
         )
     }
 
-    pub fn into_build(self, endpoints: Endpoints) -> ExecutorBuild {
+    pub fn into_build(self, endpoints: wv_endpoint::Endpoints) -> ExecutorBuild {
         ExecutorBuild::new(
-            waveless_commons::project::Config::new(
+            project::Config::new(
                 "Silence App".to_compact_string(),
                 CheapVec::from_vec(vec![self.into_database_config()]),
                 Some(Authentication::new(

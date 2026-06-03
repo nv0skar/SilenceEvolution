@@ -22,17 +22,22 @@
 
 use crate::*;
 
-use endpoint::{internal::INTERNAL_ENDPOINTS, *};
+use config::*;
 
-use waveless_commons::{databases::*, get_workspace_root};
-use waveless_compiler::{discovery::*, *};
-use waveless_executor::*;
+use crate::endpoint::{internal::*, *};
+
+use waveless_compiler::{COMPILER_CX, CompilerCx, discovery::*};
+
+use build::*;
+use databases::*;
+
+pub type UserEndpoints = CheapVec<(CompactString, CheapVec<UserEndpoint>)>;
 
 #[derive(Constructor, Getters, Debug)]
 #[getset(get = "pub")]
 pub struct AppCx {
     config: RwLock<config::Config>,
-    user_endpoints: RwLock<CheapVec<(CompactString, CheapVec<Endpoint>)>>,
+    user_endpoints: RwLock<UserEndpoints>,
     workspace_root: PathBuf,
 }
 
@@ -63,61 +68,53 @@ impl AppCx {
             panic!("App's context has already been initialized.");
         }
 
+        Self::set_databases(Self::acquire().config().read().await).await?;
+
+        Ok(())
+    }
+
+    /// Add an endpoint that will be saved into the given file.
+    pub fn add_endpoint_into<'user_endpoints_guard>(
+        mut user_endpoints: RwLockWriteGuard<'user_endpoints_guard, UserEndpoints>,
+        target: CompactString,
+        endpoint: UserEndpoint,
+    ) -> Result<()> {
+        if !target.ends_with(".json") {
+            bail!("Target file doesn't end with `.json`.");
+        }
+
+        match user_endpoints.iter_mut().find(|(file, _)| file == target) {
+            Some((_, endpoints)) => {
+                endpoints.push(endpoint);
+            }
+            None => {
+                user_endpoints.push((target, CheapVec::from_vec(vec![endpoint])));
+            }
+        }
+
         Ok(())
     }
 
     /// Loads the Silence's app's database into the databases manager (`waveless_commons::databases::DatabasesConnections`).
-    pub async fn set_databases<'app_guard>(
-        app_cx: RwLockReadGuard<'app_guard, AppCx>,
+    pub async fn set_databases<'config_guard>(
+        config: RwLockReadGuard<'config_guard, Config>,
     ) -> Result<()> {
-        DatabasesConnections::load(CheapVec::from_vec(vec![
-            app_cx.config.read().await.into_database_config(),
-        ]))
-        .await
+        DatabasesConnections::load(CheapVec::from_vec(vec![config.into_database_config()])).await
     }
 
     /// Loads the Silence's app's settings into the Waveless' runtime context.
     /// NOTE: this method requires `waveless_executor::RuntimeCx` to be initialized otherwise it will panic.
-    pub async fn set_config<'app_guard, 'runtime_guard>(
-        app_cx: RwLockReadGuard<'app_guard, AppCx>,
-        current_cx: RwLockWriteGuard<'runtime_guard, RuntimeCx>,
+    pub async fn set_config<'config_guard, 'runtime_build_guard>(
+        config: RwLockReadGuard<'config_guard, Config>,
+        mut current_build: RwLockWriteGuard<'runtime_build_guard, ExecutorBuild>,
     ) -> Result<()> {
-        let virtual_build = app_cx
-            .config
-            .read()
-            .await
+        let virtual_build = config
             .to_owned()
             .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
-
-        let mut current_build = current_cx.build().write().await;
 
         *current_build.config_mut() = virtual_build.config().to_owned();
         *current_build.executor_mut() = virtual_build.executor().to_owned();
         *current_build.databases_checksums_mut() = virtual_build.databases_checksums().to_owned();
-
-        Ok(())
-    }
-
-    /// Loads the Silence's app's endpoints into the Waveless' runtime context.
-    /// NOTE: this method requires `waveless_executor::RuntimeCx` to be initialized otherwise it will panic.
-    pub async fn set_endpoints() -> Result<()> {
-        let app_cx = Self::acquire();
-
-        let current_cx = RuntimeCx::acquire();
-
-        let endpoints = app_cx.build_endpoints().await?;
-
-        let mut current_build = current_cx.build().write().await;
-
-        *current_build.endpoints_mut() = endpoints;
-
-        // Clean all previous routers.
-        while let Some(entry) = current_cx.router().iter().next() {
-            current_cx.router().remove(entry.key());
-        }
-
-        // Rebuild endpoints.
-        current_cx.build_router().await?;
 
         Ok(())
     }
@@ -133,7 +130,7 @@ impl AppCx {
             .to_owned()
             .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
 
-        // Initialie CompilerCx if needed.
+        // Initialize CompilerCx if needed.
         if !COMPILER_CX.initialized() {
             CompilerCx::new(
                 waveless_commons::project::Project::new(
@@ -197,7 +194,7 @@ impl AppCx {
         };
 
         // Loads project's endpoints (Borrowed from the `waveless_compiler`).
-        let mut endpoints = CheapVec::<(CompactString, CheapVec<Endpoint>)>::new();
+        let mut endpoints = CheapVec::<(CompactString, CheapVec<UserEndpoint>)>::new();
 
         {
             let endpoints_dir = workspace_root.join("endpoints");
@@ -207,7 +204,7 @@ impl AppCx {
                     let endpoint_path = endpoint_path?;
                     match read(endpoint_path.path()) {
                         Ok(file_buffer) => {
-                            match serde_json::from_slice::<CheapVec<Endpoint>>(&file_buffer) {
+                            match serde_json::from_slice::<CheapVec<UserEndpoint>>(&file_buffer) {
                                 Ok(new_endpoints) => endpoints.push((
                                     endpoint_path.path().to_str().unwrap().to_compact_string(),
                                     new_endpoints,

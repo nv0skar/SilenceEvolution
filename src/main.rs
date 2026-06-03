@@ -3,8 +3,14 @@
 
 use silence::*;
 
-use waveless_commons::{execute::mysql::*, logger::*, runtime::handle_main, *};
-use waveless_executor::{server::serve, *};
+use waveless_commons::*;
+use waveless_executor::*;
+
+use execute::mysql::*;
+use logger::*;
+use runtime::handle_main;
+
+use server::serve;
 
 use std::net::SocketAddr;
 
@@ -59,16 +65,16 @@ async fn try_main() -> Result<ResultContext> {
     let app_cx = AppCx::from_workspace().await?;
 
     match app_cx {
-        Some(app_cx) => {
-            app_cx.set_cx().await?;
+        Some(_app_cx) => {
+            _app_cx.set_cx().await?;
 
             if cli.display_endpoints_on_start {
                 let runtime_build = RuntimeCx::acquire().build().read().await;
 
-                let mut endpoints = runtime_build.endpoints().to_owned();
+                let mut endpoints = runtime_build.endpoints().inner().to_owned();
 
                 // In the future, injected internal endpoints will be a global static in `waveless_executor`.
-                endpoints.add(
+                endpoints.push(
                     waveless_commons::endpoint::EndpointBuilder::default()
                         .id(LOGIN_ENDPOINT_ID.to_compact_string())
                         .route("login".to_compact_string())
@@ -76,7 +82,7 @@ async fn try_main() -> Result<ResultContext> {
                         .auto_generated(true)
                         .build()
                         .unwrap(),
-                )?;
+                );
 
                 macro_rules! print_bool {
                     ($cond: expr) => {
@@ -118,7 +124,7 @@ async fn try_main() -> Result<ResultContext> {
                             )
                         }
 
-                        #(endpoints.inner().iter().enumerate().map(|(i, endpoint)| element! {
+                        #(endpoints.iter().enumerate().map(|(i, endpoint)| element! {
                             View(background_color: if i % 2 == 0 { None } else { Some(Color::DarkGrey) }) {
                                 View(width: 200pct, justify_content: JustifyContent::End, padding_right: 2) {
                                     Text(content: endpoint.id().to_string(), weight: Weight::Bold)
@@ -131,10 +137,19 @@ async fn try_main() -> Result<ResultContext> {
                                 }
                                 View(width: 250pct) {
                                     #(
-                                       if let Some(execute) = endpoint.execute() {
-                                            let mysql_execute = execute.to_owned().into_arc_any().downcast::<MySQLExecute>().unwrap();
+                                        if let Some(execute) = endpoint
+                                            .execute()
+                                            .to_owned()
+                                            .map(|execute| {
+                                                execute
+                                                    .into_arc_any()
+                                                    .downcast::<MySQLExecute>()
+                                                    .ok()
+                                            })
+                                            .flatten()
+                                        {
                                             element! {
-                                                Text(content: mysql_execute.query().to_string())
+                                                Text(content: execute.query().to_string())
                                             }
                                         } else {
                                             element! {

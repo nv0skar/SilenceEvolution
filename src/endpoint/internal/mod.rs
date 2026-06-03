@@ -1,20 +1,19 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
+pub mod endpoint;
+
 use crate::*;
 
-use waveless_commons::{
-    endpoint::{Endpoints, HttpMethod},
-    *,
-};
-
 use execute::mysql::*;
+use wv_endpoint::*;
 
 pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
     Endpoints::new(CheapVec::from_vec(vec![
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("Whoami".to_compact_string())
             .route("/whoami".to_compact_string())
+            .version("internal".to_compact_string())
             .method(HttpMethod::Get)
             .execute(Arc::new(MySQLExecute::new(
                 "SELECT * FROM Usuarios WHERE (usuarioId = |user_id|)".to_compact_string(),
@@ -25,38 +24,54 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
+            .id("AmIAdmin".to_compact_string())
+            .route("/verify".to_compact_string())
+            .version("internal".to_compact_string())
+            .method(HttpMethod::Get)
+            .description("Verify whether the current user role is admin.".to_compact_string())
+            .require_auth(true)
+            .inject_user_id(true)
+            .auto_generated(true)
+            .build()
+            .unwrap(),
+        EndpointBuilder::default()
             .id("ListEndpoints".to_compact_string())
-            .route("/".to_compact_string())
+            .route("endpoints".to_compact_string())
+            .version("internal".to_compact_string())
             .method(HttpMethod::Get)
             .description("Lists all endpoints of the Silence app.".to_compact_string())
+            .execute(Arc::new(endpoint::EndpointManager))
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("GetEndpoint".to_compact_string())
-            .route("/manage/endpoints/{id}".to_compact_string())
+            .route("endpoints/{id}".to_compact_string())
+            .version("internal".to_compact_string())
             .method(HttpMethod::Get)
             .description("Gets an endpoint.".to_compact_string())
-            .require_auth(true)
-            .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
+            .execute(Arc::new(endpoint::EndpointManager))
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("NewEndpoint".to_compact_string())
-            .route("/manage/endpoints".to_compact_string())
+            .route("endpoints".to_compact_string())
+            .version("internal/admin".to_compact_string())
             .method(HttpMethod::Post)
             .description("Creates a new endpoint.".to_compact_string())
+            .execute(Arc::new(endpoint::EndpointManager))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .capture_all_params(true)
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("SetEndpoint".to_compact_string())
-            .route("/manage/endpoints/{id}".to_compact_string())
+            .route("endpoints/{id}".to_compact_string())
+            .version("internal/admin".to_compact_string())
             .method(HttpMethod::Put)
             .description("Modifies an existing endpoint.".to_compact_string())
             .require_auth(true)
@@ -65,9 +80,10 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("DeleteEndpoint".to_compact_string())
-            .route("/manage/endpoints/{id}".to_compact_string())
+            .route("endpoints/{id}".to_compact_string())
+            .version("internal/admin".to_compact_string())
             .method(HttpMethod::Delete)
             .description("Deletes an existing endpoint.".to_compact_string())
             .require_auth(true)
@@ -75,9 +91,10 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("GetConfig".to_compact_string())
-            .route("/manage/config".to_compact_string())
+            .route("config".to_compact_string())
+            .version("internal/admin".to_compact_string())
             .method(HttpMethod::Get)
             .description("Returns Silence app's settings.".to_compact_string())
             .require_auth(true)
@@ -85,10 +102,11 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .auto_generated(true)
             .build()
             .unwrap(),
-        waveless_commons::endpoint::EndpointBuilder::default()
+        EndpointBuilder::default()
             .id("SetConfig".to_compact_string())
-            .route("/manage/config".to_compact_string())
-            .method(HttpMethod::Post)
+            .route("config".to_compact_string())
+            .version("internal/admin".to_compact_string())
+            .method(HttpMethod::Put)
             .description("Sets Silence app's settings.".to_compact_string())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
