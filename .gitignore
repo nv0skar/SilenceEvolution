@@ -3,6 +3,7 @@
 **/package-lock.json
 **/pnpm-lock.yaml
 **/*.rs.bk
+**/CHANGELOG.txt
 **/bun.lock
 **/.tsbuildinfo
 **/.env

@@ -3,11 +3,13 @@
 
 use silence::*;
 
+use internal_endpoints::mysql_proxy::*;
+
 use waveless_commons::*;
 use waveless_executor::*;
 
 use execute::mysql::*;
-use logger::*;
+use logging::*;
 use runtime::handle_main;
 
 use server::serve;
@@ -59,25 +61,26 @@ async fn try_main() -> Result<ResultContext> {
     let cli = SilenceCLI::parse();
 
     // Setup logging.
-    subscribe_logger(cli.debug)?;
+    subscribe_logging(cli.debug)?;
 
     // Loads Silence's app's context.
     let app_cx = AppCx::from_workspace().await?;
 
     match app_cx {
         Some(_app_cx) => {
-            _app_cx.set_cx().await?;
+            _app_cx.set_global_cx().await?;
 
             if cli.display_endpoints_on_start {
                 let runtime_build = RuntimeCx::acquire().build().read().await;
 
                 let mut endpoints = runtime_build.endpoints().inner().to_owned();
 
-                // In the future, injected internal endpoints will be a global static in `waveless_executor`.
+                // The Waveless' internal endpoints are added here temporarily to allow them to be shown in the table, as they are only injected when building the router.
                 endpoints.push(
                     waveless_commons::endpoint::EndpointBuilder::default()
                         .id(LOGIN_ENDPOINT_ID.to_compact_string())
                         .route("login".to_compact_string())
+                        .method(waveless_commons::endpoint::HttpMethod::Post)
                         .version("internal".to_compact_string())
                         .auto_generated(true)
                         .build()
@@ -149,11 +152,31 @@ async fn try_main() -> Result<ResultContext> {
                                             .flatten()
                                         {
                                             element! {
-                                                Text(content: execute.query().to_string())
+                                                View {
+                                                    Text(content: execute.query().to_string())
+                                                }
+                                            }
+                                        } else if let Some(execute) = endpoint
+                                            .execute()
+                                            .to_owned()
+                                            .map(|execute| {
+                                                execute
+                                                    .into_arc_any()
+                                                    .downcast::<MySQLExecuteProxy>()
+                                                    .ok()
+                                            })
+                                            .flatten() {
+                                            element! {
+                                                View {
+                                                    Text(content: execute.query().to_string(), color: Color::Blue)
+                                                    Text(content: "(runtime parameters injected)", color: Color::DarkRed)
+                                                }
                                             }
                                         } else {
                                             element! {
-                                                Text(content: "Internal", color: Color::Blue)
+                                                View {
+                                                        Text(content: "Internal", color: Color::Blue)
+                                                }
                                             }
                                         }
                                     )

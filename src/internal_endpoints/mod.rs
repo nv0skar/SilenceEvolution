@@ -1,12 +1,15 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-pub mod endpoint;
+pub mod manage_endpoints;
+pub mod mysql_proxy;
+
+use manage_endpoints::*;
+use mysql_proxy::*;
 
 use crate::*;
 
 use execute::mysql::*;
-use wv_endpoint::*;
 
 pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
     Endpoints::new(CheapVec::from_vec(vec![
@@ -15,8 +18,9 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .route("/whoami".to_compact_string())
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
-            .execute(Arc::new(MySQLExecute::new(
-                "SELECT * FROM Usuarios WHERE (usuarioId = |user_id|)".to_compact_string(),
+            .execute(Arc::new(MySQLExecuteProxy::new(
+                "SELECT * FROM |users_target_table| WHERE (|user_id_row| = |user_id|)"
+                    .to_compact_string(),
             )))
             .description("Returns the current user.".to_compact_string())
             .require_auth(true)
@@ -29,6 +33,10 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .route("/verify".to_compact_string())
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
+            .execute(Arc::new(MySQLExecuteProxy::new(
+                "SELECT (roles.role = 'admin') as 'is_admin' FROM |roles_target_table| as roles WHERE (|user_id_row| = |user_id|)"
+                    .to_compact_string(),
+            )))
             .description("Verify whether the current user role is admin.".to_compact_string())
             .require_auth(true)
             .inject_user_id(true)
@@ -40,18 +48,18 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .route("endpoints".to_compact_string())
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
+            .execute(Arc::new(ManageEndpoints))
             .description("Lists all endpoints of the Silence app.".to_compact_string())
-            .execute(Arc::new(endpoint::EndpointManager))
             .auto_generated(true)
             .build()
             .unwrap(),
         EndpointBuilder::default()
             .id("GetEndpoint".to_compact_string())
-            .route("endpoints/{id}".to_compact_string())
+            .route("endpoints/{endpoint_id}".to_compact_string())
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
+            .execute(Arc::new(ManageEndpoints))
             .description("Gets an endpoint.".to_compact_string())
-            .execute(Arc::new(endpoint::EndpointManager))
             .auto_generated(true)
             .build()
             .unwrap(),
@@ -61,7 +69,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Post)
             .description("Creates a new endpoint.".to_compact_string())
-            .execute(Arc::new(endpoint::EndpointManager))
+            .execute(Arc::new(ManageEndpoints))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .capture_all_params(true)
@@ -70,9 +78,10 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .unwrap(),
         EndpointBuilder::default()
             .id("SetEndpoint".to_compact_string())
-            .route("endpoints/{id}".to_compact_string())
+            .route("endpoints/{endpoint_id}".to_compact_string())
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Put)
+            .execute(Arc::new(ManageEndpoints))
             .description("Modifies an existing endpoint.".to_compact_string())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
@@ -86,6 +95,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Delete)
             .description("Deletes an existing endpoint.".to_compact_string())
+            .execute(Arc::new(ManageEndpoints))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .auto_generated(true)
@@ -116,3 +126,33 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .unwrap(),
     ]))
 });
+
+/// Checks whether a given endpoint is internal.
+pub fn is_endpoint_internal(endpoint: &Endpoint) -> bool {
+    let Some(_) = endpoint.execute().to_owned().map(|execute| {
+        execute
+            .to_owned()
+            .into_arc_any()
+            .downcast::<MySQLExecute>()
+            .ok()
+            .is_some()
+            || execute
+                .into_arc_any()
+                .downcast::<MySQLExecuteProxy>()
+                .ok()
+                .is_some()
+    }) else {
+        // It's trivial that if the endpoint doesn't have a MySQL executor it's because it's internal.
+        return true;
+    };
+
+    if let Some(_) = INTERNAL_ENDPOINTS
+        .inner()
+        .iter()
+        .find(|_endpoint| *_endpoint.id() == endpoint.id())
+    {
+        return true;
+    }
+
+    return false;
+}

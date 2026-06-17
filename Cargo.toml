@@ -13,12 +13,12 @@ waveless_commons = { git = "https://github.com/nv0skar/Waveless.git" }
 waveless_compiler = { git = "https://github.com/nv0skar/Waveless.git" }
 waveless_executor = { git = "https://github.com/nv0skar/Waveless.git" }
 
-tokio = "1.48"
+tokio = { version = "1.48", features = ["full", "tracing"] }
 
 futures = "0.3.31"
 
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-toml = "0.9.8"
+toml = "0.9"
 serde_json = "1.0.149"
 serde_with = { version = "3.16", features = ["chrono"] }
 
@@ -84,6 +84,8 @@ regex = "1.12.2"
 dotenvy = "0.15"
 dotenvy_macro = "0.15"
 
+struct-patch = "0.12"
+
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
@@ -102,12 +104,14 @@ derive_more = { version = "2.0", features = ["constructor", "display"] }
 [profile.dev.package."*"]
 debug = false
 codegen-units = 256
-opt-level = 'z'
+opt-level = 's'
 
 [profile.release]
+debug = false
+strip = true
 codegen-units = 256
 lto = true
-opt-level = 'z'
+opt-level = 's'
 
 [workspace.lints.rust]
 unexpected_cfgs = "deny"
