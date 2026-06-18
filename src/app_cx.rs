@@ -26,7 +26,6 @@ use config::*;
 
 use waveless_compiler::{COMPILER_CX, CompilerCx, discovery::*};
 
-use build::*;
 use databases::*;
 
 pub type SimpleEndpointsByFile = CheapVec<(Option<PathBuf>, CheapVec<SimpleEndpoint>)>;
@@ -34,7 +33,7 @@ pub type SimpleEndpointsByFile = CheapVec<(Option<PathBuf>, CheapVec<SimpleEndpo
 #[derive(Constructor, Getters, Debug)]
 #[getset(get = "pub")]
 pub struct AppCx {
-    config: RwLock<config::Config>,
+    config: RwLock<Config>,
     #[getset(skip)]
     simple_endpoints_by_file: RwLock<SimpleEndpointsByFile>,
     workspace_root: PathBuf,
@@ -78,17 +77,20 @@ impl AppCx {
 
     /// Loads the Silence's app's settings into the Waveless' runtime context.
     /// NOTE: this method requires `waveless_executor::RuntimeCx` to be initialized otherwise it will panic.
-    pub async fn set_runtime_config<'config_guard, 'runtime_build_guard>(
-        config: RwLockReadGuard<'config_guard, Config>,
-        mut current_build: RwLockWriteGuard<'runtime_build_guard, ExecutorBuild>,
-    ) -> Result<()> {
-        let virtual_build = config
+    pub async fn set_runtime_config(&self) -> Result<()> {
+        let mut runtime_build_guard = RuntimeCx::acquire().build().write().await;
+
+        let virtual_build = self
+            .config()
+            .read()
+            .await
             .to_owned()
             .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
 
-        *current_build.config_mut() = virtual_build.config().to_owned();
-        *current_build.executor_mut() = virtual_build.executor().to_owned();
-        *current_build.databases_checksums_mut() = virtual_build.databases_checksums().to_owned();
+        *runtime_build_guard.config_mut() = virtual_build.config().to_owned();
+        *runtime_build_guard.executor_mut() = virtual_build.executor().to_owned();
+        *runtime_build_guard.databases_checksums_mut() =
+            virtual_build.databases_checksums().to_owned();
 
         Ok(())
     }
@@ -100,7 +102,7 @@ impl AppCx {
 
         // Loads project's config.
         let config = match read(workspace_root.join("config.json")).await {
-            Ok(file_buffer) => match serde_json::from_slice::<config::Config>(&file_buffer) {
+            Ok(file_buffer) => match serde_json::from_slice::<Config>(&file_buffer) {
                 Ok(config) => config,
                 Err(err) => bail!(
                     "Cannot deserialize the `config.json` file.%{}",
@@ -123,6 +125,20 @@ impl AppCx {
             simple_endpoints_by_file: RwLock::new(endpoints),
             workspace_root,
         }))
+    }
+
+    /// Saves current config state to the project's `config.json`.
+    pub async fn set_config(&self) -> Result<()> {
+        let config_guard = self.config().read().await;
+
+        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
+        let project_file = workspace_root.join("config.json");
+
+        let content = serde_json::to_string_pretty(&config_guard.to_owned())?;
+
+        write(project_file, content).await?;
+
+        Ok(())
     }
 
     /// Converts the Silence's app's endpoints (`SimpleEndpoint`) into Waveless' endpoints and discovers the database's schema to automatically generate endpoints.

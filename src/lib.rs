@@ -4,13 +4,13 @@
 pub mod app_cx;
 pub mod config;
 pub mod internal_endpoints;
-pub mod panel;
 pub mod simple_endpoint;
+pub mod static_service;
 
 pub use app_cx::*;
 pub use internal_endpoints::*;
-pub use panel::*;
 pub use simple_endpoint::*;
+pub use static_service::*;
 
 use std::any::{Any, TypeId};
 use std::convert::Infallible;
@@ -41,7 +41,7 @@ use serde_json::json;
 use struct_patch::*;
 use tokio::{
     fs::{create_dir, read, read_dir, write},
-    sync::{OnceCell, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{OnceCell, RwLock},
 };
 use tower::Service;
 use tracing::*;

@@ -11,7 +11,10 @@ use databases::mysql::*;
 use schema::mysql::*;
 
 /// Silence's project config.
-#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, MutGetters, Debug)]
+#[derive(
+    Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, MutGetters, Patch, Debug,
+)]
+#[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -60,7 +63,8 @@ impl Default for Config {
 }
 
 /// Defines the parameters that will be used internally to manage authentication and other routines.
-#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, Debug)]
+#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, Patch, Debug)]
+#[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
 #[getset(get = "pub")]
 pub struct InternalParams {
     user_id: CompactString,

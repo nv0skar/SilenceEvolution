@@ -1,10 +1,10 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-pub mod manage_endpoints;
+pub mod admin;
 pub mod mysql_proxy;
 
-use manage_endpoints::*;
+use admin::*;
 use mysql_proxy::*;
 
 use crate::*;
@@ -48,7 +48,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .route("endpoints".to_compact_string())
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
-            .execute(Arc::new(ManageEndpoints))
+            .execute(Arc::new(EndpointsManager))
             .description("Lists all endpoints of the Silence app.".to_compact_string())
             .auto_generated(true)
             .build()
@@ -58,7 +58,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .route("endpoints/{endpoint_id}".to_compact_string())
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
-            .execute(Arc::new(ManageEndpoints))
+            .execute(Arc::new(EndpointsManager))
             .description("Gets an endpoint.".to_compact_string())
             .auto_generated(true)
             .build()
@@ -69,7 +69,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Post)
             .description("Creates a new endpoint.".to_compact_string())
-            .execute(Arc::new(ManageEndpoints))
+            .execute(Arc::new(EndpointsManager))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .capture_all_params(true)
@@ -81,7 +81,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .route("endpoints/{endpoint_id}".to_compact_string())
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Put)
-            .execute(Arc::new(ManageEndpoints))
+            .execute(Arc::new(EndpointsManager))
             .description("Modifies an existing endpoint.".to_compact_string())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
@@ -95,7 +95,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Delete)
             .description("Deletes an existing endpoint.".to_compact_string())
-            .execute(Arc::new(ManageEndpoints))
+            .execute(Arc::new(EndpointsManager))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .auto_generated(true)
@@ -107,6 +107,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Get)
             .description("Returns Silence app's settings.".to_compact_string())
+            .execute(Arc::new(ConfigManager))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .auto_generated(true)
@@ -118,6 +119,7 @@ pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".to_compact_string())
             .method(HttpMethod::Put)
             .description("Sets Silence app's settings.".to_compact_string())
+            .execute(Arc::new(ConfigManager))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".to_compact_string()]))
             .capture_all_params(true)

@@ -219,7 +219,7 @@ async fn try_main() -> Result<ResultContext> {
                     Some(addr) => Some(addr.to_owned()),
                     None => cli.addr,
                 },
-                BoxCloneService::new(StaticFiles),
+                BoxCloneService::new(StaticService),
             )
             .await?;
         }

@@ -8,14 +8,14 @@ use execute::*;
 
 #[derive(Clone, Serialize, Deserialize, Getters, Display, Debug)]
 #[display("Endpoint manager.")]
-pub struct ManageEndpoints;
+pub struct EndpointsManager;
 
-boxed_any!(ManageEndpoints);
+boxed_any!(EndpointsManager);
 
-// TODO: Handle endpoint update and deletion.
+/// TODO: add docs here.
 #[typetag::serde(name = "EndpointManager")]
 #[async_trait]
-impl AnyExecute for ManageEndpoints {
+impl AnyExecute for EndpointsManager {
     async fn execute(
         &self,
         method: HttpMethod,

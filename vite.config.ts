@@ -1,36 +1,39 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { defineConfig } from 'vite'
+import { defineConfig } from "vite";
 
-import { resolve } from 'path';
+import { resolve } from "path";
 
-import solid from 'vite-plugin-solid'
-import tailwindcss from '@tailwindcss/vite'
+import solid from "vite-plugin-solid";
+import tailwindcss from "@tailwindcss/vite";
 
 import { imagetools } from "vite-imagetools";
 
 export default defineConfig(({ mode }) => {
-    const isProd = mode === 'production'
+    const isProd = mode === "production";
 
     return {
-        base: '',
-        root: './frontend',
+        base: "",
+        root: "./frontend",
         build: {
-            outDir: '../target/frontend',
-            assetsDir: 'internal_assets',
+            outDir: "../target/frontend",
+            assetsDir: "internal_assets",
             minify: isProd,
             cssMinify: isProd,
             cssCodeSplit: true,
-            sourcemap: 'hidden',
+            sourcemap: "hidden",
             emptyOutDir: true,
             rollupOptions: {
                 input: {
-                    panel: resolve(__dirname, './frontend/panel/index.html'),
-                }
-            }
-
+                    panel: resolve(__dirname, "./frontend/admin/index.html"),
+                },
+            },
         },
-        plugins: [solid({ hot: true }), tailwindcss({ optimize: true }), imagetools()],
-    }
-})
+        plugins: [
+            solid({ hot: true }),
+            tailwindcss({ optimize: true }),
+            imagetools(),
+        ],
+    };
+});
