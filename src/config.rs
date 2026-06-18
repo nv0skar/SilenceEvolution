@@ -88,6 +88,7 @@ impl Config {
     pub fn into_database_config(&self) -> DatabaseConfig {
         let mut skip_tables = self.skip_discovery_tables().to_owned();
         skip_tables.append(&mut CheapVec::<CompactString>::from_vec(vec![
+            self.internal_params.users_target_table.to_owned(),
             self.internal_params.sessions_target_table.to_owned(),
             self.internal_params.roles_target_table.to_owned(),
         ]));
