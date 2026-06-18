@@ -127,8 +127,10 @@ impl AppCx {
         }))
     }
 
-    /// Saves current config state to the project's `config.json`.
+    /// Syncs the app's config with the runtime build's config and saves current config state to the project's `config.json`.
     pub async fn set_config(&self) -> Result<()> {
+        AppCx::acquire().set_runtime_config().await?;
+
         let config_guard = self.config().read().await;
 
         let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
@@ -183,7 +185,7 @@ impl AppCx {
         // Discover MySQL schema endpoints.
         let config_guard = self.config.read().await;
 
-        let mut skip_endpoint_ids = config_guard.skip_endpoints_ids().iter().to_owned();
+        let skip_endpoint_ids = config_guard.skip_endpoints_ids();
 
         endpoints.merge(
             discover()
@@ -426,6 +428,7 @@ impl AppCx {
 
         // Convert endpoint from `waveless_commons::endpoint::Endpoint` back to Silence's `SimpleEndpoint`.
         let mut simple_endpoint = SimpleEndpoint::from(endpoint);
+        *simple_endpoint.auto_generated_mut() = false;
 
         // Delete the endpoint.
         let target_path = self.delete_endpoint(id).await?;
@@ -481,7 +484,6 @@ impl AppCx {
         // Beware that by definition, the whole table isn't skipped only that specific endpoint.
         // Otherwise, if the endpoint is user-generated remove the endpoint from it's definition file.
         if *endpoint.auto_generated() {
-            // TODO: write config file management logic.
             let mut _config_guard = Self::acquire().config().write().await;
             _config_guard
                 .skip_endpoints_ids_mut()
@@ -513,6 +515,16 @@ impl AppCx {
                 drop(simple_endpoint_by_files); // drop the lock to be able to read the simple endpoints from the app's context.
                 self.set_simple_endpoints_files(Some(target_path)).await?;
             }
+        }
+
+        drop(build); // drop the lock to be able to write to the runtime build.
+
+        RuntimeCx::acquire().build_router().await?; // Rebuild the runtime's router.
+
+        // If the endpoint was auto-generated it means that the app's config has been modified,
+        // we have to set the config (cannot be done before because the lock is held by `build`).
+        if *endpoint.auto_generated() {
+            AppCx::acquire().set_config().await?;
         }
 
         Ok(target_path)

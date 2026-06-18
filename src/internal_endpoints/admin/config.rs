@@ -50,8 +50,6 @@ impl AnyExecute for ConfigManager {
                     config_guard.apply(config_patch);
                 }
 
-                AppCx::acquire().set_runtime_config().await?;
-
                 AppCx::acquire().set_config().await?;
 
                 Ok(ExecuteOutput::Json(None, json!({})))

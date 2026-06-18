@@ -9,10 +9,21 @@ use execute::mysql::*;
 
 /// Silence's endpoint.
 /// TODO: add documentation.
-#[derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Getters, Patch, Debug)]
+#[derive(
+    Clone,
+    PartialEq,
+    Constructor,
+    Builder,
+    Serialize,
+    Deserialize,
+    Getters,
+    MutGetters,
+    Patch,
+    Debug,
+)]
 #[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
 #[builder(default, pattern = "mutable", setter(strip_option))]
-#[getset(get = "pub")]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct SimpleEndpoint {
     id: CompactString,
 

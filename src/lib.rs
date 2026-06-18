@@ -34,7 +34,6 @@ use derive_more::Display;
 use futures::future::BoxFuture;
 use getset::*;
 use hyper::{Response, StatusCode};
-use itertools::*;
 use rust_embed_for_web::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

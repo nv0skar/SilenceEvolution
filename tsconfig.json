@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "module": "ESNext",
         "moduleResolution": "bundler",
         "moduleDetection": "force",
         "allowImportingTsExtensions": true,
@@ -36,25 +37,19 @@
         "forceConsistentCasingInFileNames": true,
         "isolatedModules": true,
         "allowSyntheticDefaultImports": true,
-        "types": [
-            "bun",
-            "bun-types",
-            "vite/client"
-        ],
+        "types": ["bun", "bun-types", "vite/client"],
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
         "incremental": true,
-        "tsBuildInfoFile": "./.tsbuildinfo"
+        "tsBuildInfoFile": "./.tsbuildinfo",
     },
-    "include": [
-        "frontend/**/*"
-    ],
+    "include": ["frontend/**/*"],
     "exclude": [
         "src",
         "node_modules",
         "target",
         "**/*.test.ts",
-        "**/*.spec.ts"
-    ]
+        "**/*.spec.ts",
+    ],
 }
