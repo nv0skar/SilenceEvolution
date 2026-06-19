@@ -3,7 +3,7 @@
 
 use silence::*;
 
-use internal_endpoints::mysql_proxy::*;
+use silence::internal_endpoints::mysql_proxy::*;
 
 use waveless_commons::*;
 use waveless_executor::*;
@@ -15,6 +15,8 @@ use runtime::handle_main;
 use server::serve;
 
 use std::net::SocketAddr;
+
+use rustyrosetta::*;
 
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -76,16 +78,13 @@ async fn try_main() -> Result<ResultContext> {
                 let mut endpoints = runtime_build.endpoints().inner().to_owned();
 
                 // The Waveless' internal endpoints are added here temporarily to allow them to be shown in the table, as they are only injected when building the router.
-                endpoints.push(
-                    waveless_commons::endpoint::EndpointBuilder::default()
-                        .id(LOGIN_ENDPOINT_ID.to_compact_string())
-                        .route("login".to_compact_string())
-                        .method(waveless_commons::endpoint::HttpMethod::Post)
-                        .version("internal".to_compact_string())
-                        .auto_generated(true)
-                        .build()
-                        .unwrap(),
-                );
+                endpoints.append(&mut CheapVec::<endpoint::Endpoint>::from_vec(
+                    INTERNAL_ENDPOINTS
+                        .iter()
+                        .map(|(_, endpoint)| endpoint)
+                        .cloned()
+                        .collect(),
+                ));
 
                 macro_rules! print_bool {
                     ($cond: expr) => {

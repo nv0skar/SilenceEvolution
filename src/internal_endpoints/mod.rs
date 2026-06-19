@@ -11,7 +11,7 @@ use crate::*;
 
 use execute::mysql::*;
 
-pub static INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
+pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
     Endpoints::new(CheapVec::from_vec(vec![
         EndpointBuilder::default()
             .id("Whoami".to_compact_string())
@@ -148,7 +148,7 @@ pub fn is_endpoint_internal(endpoint: &Endpoint) -> bool {
         return true;
     };
 
-    if let Some(_) = INTERNAL_ENDPOINTS
+    if let Some(_) = APP_INTERNAL_ENDPOINTS
         .inner()
         .iter()
         .find(|_endpoint| *_endpoint.id() == endpoint.id())

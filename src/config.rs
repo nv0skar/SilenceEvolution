@@ -119,6 +119,7 @@ impl Config {
                         self.internal_params.user_id.to_owned(),
                         "email".to_compact_string(),
                         "password".to_compact_string(),
+                        CheapVec::from_vec(vec!["name".to_compact_string()]),
                         None,
                     ))]),
                     Arc::new(MySQLToken::new(
@@ -137,7 +138,7 @@ impl Config {
                     ))),
                     None,
                     true,
-                    false,
+                    true,
                 )),
                 Admin::new(
                     false,

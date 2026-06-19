@@ -180,7 +180,7 @@ impl AppCx {
         );
 
         // Adds internal endpoints.
-        endpoints.merge(INTERNAL_ENDPOINTS.to_owned())?;
+        endpoints.merge(APP_INTERNAL_ENDPOINTS.to_owned())?;
 
         // Discover MySQL schema endpoints.
         let config_guard = self.config.read().await;
@@ -329,16 +329,29 @@ impl AppCx {
             .collect::<SimpleEndpointsByFile>();
 
         // Get all the endpoints that have been injected and automatically generated.
-        let endpoints = executor_build_guard
-            .endpoints()
-            .inner()
-            .iter()
-            .filter(|endpoint| *endpoint.auto_generated())
-            .map(|endpoint| endpoint.into())
-            .collect::<CheapVec<SimpleEndpoint>>();
+        {
+            let endpoints = executor_build_guard
+                .endpoints()
+                .inner()
+                .iter()
+                .filter(|endpoint| *endpoint.auto_generated())
+                .map(|endpoint| endpoint.into())
+                .collect::<CheapVec<SimpleEndpoint>>();
 
-        // Merge all the endpoints.
-        simple_endpoints_by_file.push((None, endpoints));
+            simple_endpoints_by_file.push((None, endpoints));
+        }
+
+        // Get all Waveless' internal endpoints.
+        {
+            let endpoints = INTERNAL_ENDPOINTS
+                .iter()
+                .map(|(_, endpoint)| endpoint)
+                .cloned()
+                .map(|endpoint| endpoint.into())
+                .collect::<CheapVec<_>>();
+
+            simple_endpoints_by_file.push((None, endpoints));
+        }
 
         Ok(simple_endpoints_by_file)
     }
