@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
             emptyOutDir: true,
             rollupOptions: {
                 input: {
-                    panel: resolve(__dirname, "./frontend/admin/index.html"),
+                    admin: resolve(__dirname, "./frontend/admin/index.html"),
+                    auth: resolve(__dirname, "./frontend/auth/index.html"),
                 },
             },
         },

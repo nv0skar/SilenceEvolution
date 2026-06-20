@@ -43,14 +43,12 @@ impl Service<RouterRequest> for StaticService {
 
             let body = match route.split('/').next() {
                 Some(route_part) => match route_part {
-                    "admin" | "internal_assets" => {
+                    "admin" | "auth" | "internal_assets" => {
                         if let Some(file) = StaticService::get({
-                            if route
-                                .strip_prefix("admin")
-                                .map(|part| part.trim_start_matches('/').is_empty())
-                                .unwrap_or(false)
-                            {
+                            if route_part == "admin" {
                                 "admin/index.html"
+                            } else if route_part == "auth" {
+                                "auth/index.html"
                             } else {
                                 &route
                             }

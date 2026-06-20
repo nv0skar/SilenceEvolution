@@ -1,22 +1,22 @@
 {
     "type": "module",
     "dependencies": {
-        "solid-js": "1.9.11",
-        "@solidjs/meta": "0.29.4",
-        "@solidjs/router": "0.15.0",
-        "@solidjs/start": "1.1.0"
+        "solid-js": "~1.9.13",
+        "@solidjs/meta": "~0.29.4",
+        "@solidjs/router": "~0.16.1",
+        "@solidjs/start": "~1.3.2"
     },
     "devDependencies": {
-        "bun": "1.3.9",
-        "@types/bun": "1.3.9",
-        "typescript": "5.9.3",
-        "vite": "7.3.1",
-        "vite-plugin-solid": "2.11.10",
-        "sass-embedded": "1.97.3",
-        "tailwindcss": "4.2.0",
-        "@tailwindcss/vite": "4.2.0",
-        "daisyui": "5.5.18",
-        "vite-imagetools": "9.0.3"
+        "bun": "~1.3.14",
+        "@types/bun": "~1.3.14",
+        "typescript": "~6.0.3",
+        "vite": "~8.0.16",
+        "vite-plugin-solid": "~2.11.12",
+        "sass-embedded": "~1.100.0",
+        "tailwindcss": "~4.3.1",
+        "@tailwindcss/vite": "~4.3.1",
+        "daisyui": "~5.5.23",
+        "vite-imagetools": "~10.0.1"
     },
     "scripts": {
         "dev": "vite",

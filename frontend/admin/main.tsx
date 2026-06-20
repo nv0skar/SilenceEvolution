@@ -1,10 +1,11 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import App from './App.tsx'
+import Admin from "./Admin.tsx";
 
-import { render } from 'solid-js/web'
+import { render } from "solid-js/web";
+import { Router } from "@solidjs/router";
 
-const root = document.getElementById('root')
+const root = document.getElementById("root");
 
-render(() => <App />, root!)
+render(() => <Router root={Admin} base="/admin" />, root!);
