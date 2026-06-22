@@ -19,25 +19,10 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal".to_compact_string())
             .method(HttpMethod::Get)
             .execute(Arc::new(MySQLExecuteProxy::new(
-                "SELECT * FROM |users_target_table| WHERE (|user_id_row| = |user_id|)"
+                "SELECT users.|user_id_row|, users.name, users.email, roles.role FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.|user_id_row| = users.|user_id_row|) WHERE (users.|user_id_row| = |user_id|)"
                     .to_compact_string(),
             )))
             .description("Returns the current user.".to_compact_string())
-            .require_auth(true)
-            .inject_user_id(true)
-            .auto_generated(true)
-            .build()
-            .unwrap(),
-        EndpointBuilder::default()
-            .id("AmIAdmin".to_compact_string())
-            .route("/verify".to_compact_string())
-            .version("internal".to_compact_string())
-            .method(HttpMethod::Get)
-            .execute(Arc::new(MySQLExecuteProxy::new(
-                "SELECT (roles.role = 'admin') as 'is_admin' FROM |roles_target_table| as roles WHERE (|user_id_row| = |user_id|)"
-                    .to_compact_string(),
-            )))
-            .description("Verify whether the current user role is admin.".to_compact_string())
             .require_auth(true)
             .inject_user_id(true)
             .auto_generated(true)

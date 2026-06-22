@@ -12,11 +12,11 @@ import {
 } from "solid-js";
 
 import { A, useSearchParams, type RouteSectionProps } from "@solidjs/router";
-export const Context = createContext<Context>();
+export const Context = createContext<Global>();
 
-type Context = {
-    setTitle: Setter<string>;
-    setError: Setter<string | undefined>;
+type Global = {
+    set_title: Setter<string>;
+    set_error: Setter<string | undefined>;
     redirect: string;
 };
 
@@ -24,7 +24,7 @@ export default (props: RouteSectionProps) => {
     // Check whether a session already exists.
     const [session_exists] = createResource(async () => {
         const res = await fetch("/api/internal/whoami");
-
+        if (!res.ok) console.clear();
         return res.status === 200;
     });
 
@@ -34,9 +34,9 @@ export default (props: RouteSectionProps) => {
         }),
     );
 
-    const [title, setTitle] = createSignal<string>("Login");
+    const [title, set_title] = createSignal<string>("Login");
 
-    const [error, setError] = createSignal<string | undefined>(undefined);
+    const [error, set_error] = createSignal<string | undefined>(undefined);
 
     const [params, _] = useSearchParams();
 
@@ -45,7 +45,7 @@ export default (props: RouteSectionProps) => {
     return (
         <>
             <nav>
-                <div class="navbar bg-base-100/50 backdrop-blur-sm shadow fixed">
+                <div class="navbar bg-base-100/50 backdrop-blur-xl shadow fixed">
                     <div class="navbar-start"></div>
                     <div class="navbar-center">
                         <A
@@ -60,7 +60,13 @@ export default (props: RouteSectionProps) => {
             </nav>
             <div class="flex h-screen justify-center items-center">
                 <div>
-                    <Context.Provider value={{ setTitle, setError, redirect }}>
+                    <Context.Provider
+                        value={{
+                            set_title: set_title,
+                            set_error: set_error,
+                            redirect,
+                        }}
+                    >
                         <h1 class="my-6 text-4xl font-extrabold text-center">
                             {title()}
                         </h1>
@@ -68,11 +74,10 @@ export default (props: RouteSectionProps) => {
                             <Show when={error() != undefined}>
                                 <div
                                     class="bg-red-800 border-red-400 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer"
-                                    onClick={() => setError(undefined)}
+                                    onClick={() => set_error(undefined)}
                                 >
                                     <p class="text-sm font-semibold">
-                                        An error has occurred.&nbsp;
-                                        {error()!}
+                                        An error has occurred. {error()!}
                                     </p>
                                 </div>
                             </Show>

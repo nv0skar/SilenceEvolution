@@ -10,11 +10,9 @@ import { A } from "@solidjs/router";
 export default () => {
     const context = useContext(Context);
 
-    if (!context) {
-        throw new Error("Can't find auth's context");
-    }
+    if (!context) throw new Error("Can't find auth's context");
 
-    context.setTitle("Login");
+    context.set_title("Login");
 
     const submit_login = async (
         event: SubmitEvent & { currentTarget: HTMLFormElement },
@@ -32,7 +30,7 @@ export default () => {
         });
 
         if (res.status == 200) document.location = context.redirect;
-        else context.setError((await res.json())["error"]);
+        else context.set_error((await res.json())["error"]);
     };
 
     return (
@@ -40,7 +38,7 @@ export default () => {
             <form
                 onSubmit={submit_login}
                 onInput={(event) => {
-                    context.setError(undefined);
+                    context.set_error(undefined);
 
                     let form = event.currentTarget;
                     let submit = document.getElementById("submit");
@@ -83,7 +81,7 @@ export default () => {
                     <input
                         id="submit"
                         type="submit"
-                        class="btn btn-neutral btn-disabled mt-4"
+                        class="btn btn-neutral btn-disabled mt-4 hover:shadow-xl"
                         value="Login"
                     />
                 </fieldset>

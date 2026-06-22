@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     const isProd = mode === "production";
 
     return {
-        base: "",
+        base: "/",
         root: "./frontend",
         build: {
             outDir: "../target/frontend",
