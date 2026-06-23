@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 import { UserContext } from "./Admin";
-import { type EndpointStruct } from "./Endpoint";
+import { type EndpointStruct } from "./ManageEndpoint";
 
 import {
     children,
@@ -29,12 +29,24 @@ export const EndpointsContext = createContext<{
     refetch_endpoints: Function;
 }>();
 
+const REDUCED_FIELDS: Array<keyof EndpointStruct> = [
+    "id",
+    "version",
+    "route",
+    "method",
+    "query",
+    "body_params",
+];
+
 export default (props: RouteSectionProps) => {
     const user_context = useContext(UserContext);
 
     if (!user_context) throw new Error("Can't find user's context");
 
     const navigate = useNavigate();
+
+    // Full data.
+    const [get_full_data, set_full_data] = createSignal<boolean>(false);
 
     // Load endpoints.
     const [endpoints, { refetch }] = createResource(
@@ -113,10 +125,15 @@ export default (props: RouteSectionProps) => {
             });
     });
 
-    const render_field = (field: Accessor<any>, ix: number): Element => {
-        switch (typeof field()) {
+    const render_field = (
+        field: Accessor<[string, any]>,
+        ix: number,
+    ): Element => {
+        const [_, value] = field();
+
+        switch (typeof value) {
             case "string": {
-                if ((field() as string).length === 0)
+                if ((value as string).length === 0)
                     return (<span>—</span>) as Element;
                 else if (ix === 7) {
                     const [formatted_sql, set_formatted_sql] =
@@ -124,7 +141,7 @@ export default (props: RouteSectionProps) => {
 
                     createEffect(async () => {
                         set_formatted_sql(
-                            await sql_grammar()?.highlight(field())!,
+                            await sql_grammar()?.highlight(value)!,
                         );
                     });
 
@@ -145,19 +162,19 @@ export default (props: RouteSectionProps) => {
                                 "font-bold": ix === 0,
                             }}
                         >
-                            {field()}
+                            {value as string}
                         </span>
                     ) as Element;
             }
             case "boolean": {
-                if (field())
+                if (value)
                     return (<span class="text-success">Yes</span>) as Element;
                 else return (<span class="text-error">No</span>) as Element;
             }
             default: {
                 return (
                     <span>
-                        {field() ? (field() as Array<string>).join(", ") : "—"}
+                        {value ? (value as Array<string>).join(", ") : "—"}
                     </span>
                 ) as Element;
             }
@@ -169,12 +186,40 @@ export default (props: RouteSectionProps) => {
             <div>
                 <div class="flex items-center w-full">
                     <h1 class="text-4xl font-bold">Endpoints</h1>
-                    <A
-                        class="btn text-sm self-end text-right ml-auto"
-                        href="new"
-                    >
-                        Create new endpoint
-                    </A>
+                    <div class="flex self-end text-right ml-auto items-center">
+                        <A
+                            class="btn text-sm self-end text-right ml-auto"
+                            href="/endpoints/new"
+                        >
+                            <span class="material-symbols-outlined lg:hidden!">
+                                add
+                            </span>
+                            <span class="not-lg:hidden">
+                                Create new endpoint
+                            </span>
+                        </A>
+                        <div
+                            class="mx-2 px-2 py-2 btn btn-ghost bg-base-200 border border-base-300 rounded-2xl flex items-baseline-last gap-2"
+                            onClick={(_) => {
+                                set_full_data(!get_full_data());
+                            }}
+                        >
+                            <span
+                                class="text-xs text-blue-500 font-semibold self-center"
+                                classList={{
+                                    "text-red-500": get_full_data(),
+                                }}
+                            >
+                                {get_full_data() ? "Full data" : "Reduced data"}
+                            </span>
+                            <input
+                                id="table-mode"
+                                type="checkbox"
+                                class="toggle"
+                                checked={get_full_data()}
+                            />
+                        </div>
+                    </div>
                 </div>
                 <Show when={!endpoints.loading}>
                     <div
@@ -234,32 +279,100 @@ export default (props: RouteSectionProps) => {
                     <div class="overflow-x-auto">
                         <div class="text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
-                                <div class="table-row font-bold bg-base-200 [&_div]:p-2 [&_div]:align-middle">
-                                    <div class="table-cell"></div>
+                                <div class="table-row font-bold bg-base-200 [&_div]:w-auto [&_div]:p-2 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                    <div class="table-cell rounded-tl-xl!"></div>
                                     <div class="table-cell">ID</div>
                                     <div class="table-cell">Route</div>
-                                    <div class="table-cell">Description</div>
+
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
+                                        Description
+                                    </div>
+
                                     <div class="table-cell">Version</div>
                                     <div class="table-cell">Method</div>
-                                    <div class="table-cell">Query params</div>
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
+                                        Query params
+                                    </div>
                                     <div class="table-cell">Body params</div>
-                                    <div class="table-cell">Query</div>
-                                    <div class="table-cell">Requires auth</div>
-                                    <div class="table-cell">Allowed roles</div>
-                                    <div class="table-cell">
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "rounded-tr-xl!": !get_full_data(),
+                                        }}
+                                    >
+                                        Query
+                                    </div>
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
+                                        Requires auth
+                                    </div>
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
+                                        Allowed roles
+                                    </div>
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
                                         Injects user id
                                     </div>
-                                    <div class="table-cell">Auto-generated</div>
-                                    <div class="table-cell">Path</div>
+                                    <div
+                                        class="table-cell"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
+                                        Auto-generated
+                                    </div>
+                                    <div
+                                        class="table-cell rounded-tr-xl!"
+                                        classList={{
+                                            "hidden!": !get_full_data(),
+                                        }}
+                                    >
+                                        Path
+                                    </div>
                                 </div>
                             </div>
                             <div class="table-row-group [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:shadow-xl [&>div]:hover:cursor-pointer">
-                                <Index each={endpoints()}>
+                                <Index
+                                    each={endpoints()?.sort(
+                                        (endpoint_pair_1, endpoint_pair_2) => {
+                                            return endpoint_pair_1.endpoint.id.localeCompare(
+                                                endpoint_pair_2.endpoint.id,
+                                            );
+                                        },
+                                    )}
+                                >
                                     {(endpoint, ix) => (
                                         <div
-                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-3 [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
+                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
                                             classList={{
                                                 "bg-base-200": ix % 2 === 1,
+                                                "hidden!":
+                                                    !get_full_data() &&
+                                                    endpoint().endpoint
+                                                        .query! === null,
                                             }}
                                             onClick={() =>
                                                 navigate(
@@ -275,26 +388,42 @@ export default (props: RouteSectionProps) => {
                                                 {ix}
                                             </div>
                                             <Index
-                                                each={Object.values(
+                                                each={Object.entries(
                                                     endpoint()
                                                         .endpoint as EndpointStruct,
                                                 )}
                                             >
                                                 {(field, ix) => (
-                                                    <div class="table-cell">
-                                                        {
-                                                            // @ts-ignore
-                                                            (): Element => {
-                                                                return render_field(
-                                                                    field,
-                                                                    ix,
-                                                                );
+                                                    <>
+                                                        <div
+                                                            class="table-cell"
+                                                            classList={{
+                                                                "hidden!":
+                                                                    !REDUCED_FIELDS.includes(
+                                                                        field()[0] as keyof EndpointStruct,
+                                                                    ) &&
+                                                                    !get_full_data(),
+                                                            }}
+                                                        >
+                                                            {
+                                                                // @ts-ignore
+                                                                (): Element => {
+                                                                    return render_field(
+                                                                        field,
+                                                                        ix,
+                                                                    );
+                                                                }
                                                             }
-                                                        }
-                                                    </div>
+                                                        </div>
+                                                    </>
                                                 )}
                                             </Index>
-                                            <div class="table-cell font-light">
+                                            <div
+                                                class="table-cell font-light pr-4!"
+                                                classList={{
+                                                    "hidden!": !get_full_data(),
+                                                }}
+                                            >
                                                 {endpoint().path ?? "—"}
                                             </div>
                                         </div>

@@ -4,7 +4,7 @@
 import Admin from "./Admin.tsx";
 
 import Endpoints from "./Endpoints.tsx";
-import Endpoint from "./Endpoint.tsx";
+import Endpoint from "./ManageEndpoint.tsx";
 
 import Settings from "./Settings.tsx";
 import Users from "./Users.tsx";

@@ -12,7 +12,7 @@ use crate::*;
 use execute::mysql::*;
 
 pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
-    Endpoints::new(CheapVec::from_vec(vec![
+    Endpoints::new_unchecked(CheapVec::from_vec(vec![
         EndpointBuilder::default()
             .id("Whoami".to_compact_string())
             .route("/whoami".to_compact_string())

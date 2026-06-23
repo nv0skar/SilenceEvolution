@@ -80,12 +80,9 @@ impl AppCx {
     pub async fn set_runtime_config(&self) -> Result<()> {
         let mut runtime_build_guard = RuntimeCx::acquire().build().write().await;
 
-        let virtual_build = self
-            .config()
-            .read()
-            .await
-            .to_owned()
-            .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
+        let virtual_build = self.config().read().await.to_owned().into_build(
+            waveless_commons::endpoint::Endpoints::new_unchecked(CheapVec::new()),
+        );
 
         *runtime_build_guard.config_mut() = virtual_build.config().to_owned();
         *runtime_build_guard.executor_mut() = virtual_build.executor().to_owned();
@@ -147,12 +144,9 @@ impl AppCx {
     async fn build_runtime_endpoints(&self) -> Result<waveless_commons::endpoint::Endpoints> {
         // In the future, endpoint discovery will be `CompilerCx` independent.
         // In the meanwhile we do this as a workaround.
-        let dummy_build = self
-            .config
-            .read()
-            .await
-            .to_owned()
-            .into_build(waveless_commons::endpoint::Endpoints::new(CheapVec::new()));
+        let dummy_build = self.config.read().await.to_owned().into_build(
+            waveless_commons::endpoint::Endpoints::new_unchecked(CheapVec::new()),
+        );
 
         // Initialize CompilerCx if needed.
         if !COMPILER_CX.initialized() {
@@ -177,7 +171,7 @@ impl AppCx {
                 .flatten()
                 .map(|endpoint| -> waveless_commons::endpoint::Endpoint { endpoint.into() })
                 .collect::<CheapVec<waveless_commons::endpoint::Endpoint>>(),
-        );
+        )?; // This can fail, as the endpoints might be invalid.
 
         // Adds internal endpoints.
         endpoints.merge(APP_INTERNAL_ENDPOINTS.to_owned())?;
@@ -194,13 +188,15 @@ impl AppCx {
                 .iter()
                 .filter(|(name, _)| name == "main".to_compact_string())
                 .cloned()
-                .map(|(_, endpoints)| {
-                    Endpoints::new(
-                        endpoints
+                .map(|(_, discovered_endpoints)| {
+                    Endpoints::new_unchecked(
+                        discovered_endpoints
                             .inner()
                             .iter()
                             .cloned()
-                            .filter(|endpoint| !skip_endpoint_ids.contains(endpoint.id()))
+                            .filter(|discovered_endpoint| {
+                                !skip_endpoint_ids.contains(discovered_endpoint.id())
+                            })
                             .collect::<CheapVec<Endpoint>>(),
                     )
                 }) // won't add endpoints whose id is in `Config::skip_endpoints_ids`.
@@ -211,61 +207,105 @@ impl AppCx {
         Ok(endpoints)
     }
 
-    /// Loads simple endpoints files (Borrowed from the `waveless_compiler`).
+    /// Loads simple endpoints files from the project's endpoints folder (Borrowed from the `waveless_compiler`).
     async fn get_simple_endpoints_files() -> Result<Option<SimpleEndpointsByFile>> {
-        let mut endpoints = SimpleEndpointsByFile::new();
-
         let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
         let endpoints_dir = workspace_root.join("endpoints");
 
-        if let Ok(mut endpoints_path) = read_dir(endpoints_dir).await {
-            while let Ok(Some(endpoint_path)) = endpoints_path.next_entry().await {
-                match read(endpoint_path.path()).await {
-                    Ok(file_buffer) => {
-                        match serde_json::from_slice::<CheapVec<SimpleEndpoint>>(&file_buffer) {
-                            Ok(new_endpoints) => {
-                                // Check whether an endpoint has been auto-generated.
-                                let mut _new_endpoints_iter = new_endpoints.iter();
-                                while let Some(endpoint) = _new_endpoints_iter.next() {
-                                    if *endpoint.auto_generated() {
-                                        bail!(
-                                            "The endpoint `{}` from file `{}` cannot be marked as auto-generated.",
-                                            endpoint.id(),
-                                            endpoint_path.path().display()
-                                        );
-                                    }
+        if let Ok(endpoints_dir_exists) = try_exists(&endpoints_dir).await {
+            match endpoints_dir_exists {
+                true => {
+                    let mut endpoints = SimpleEndpointsByFile::new();
+
+                    endpoints.append(&mut Self::walk_simple_endpoints_files(endpoints_dir).await?);
+
+                    debug!("Deserialized user's endpoints: {:#?}", endpoints);
+
+                    Ok(Some(endpoints))
+                }
+                false => {
+                    warn!(
+                        "Endpoints directory (`./endpoints`) cannot be found. Omitting user endpoints..."
+                    );
+
+                    Ok(None)
+                }
+            }
+        } else {
+            error!(
+                "Cannot read from endpoints directory (`./endpoints`). Are you sure you have permissions?"
+            );
+            Ok(None)
+        }
+    }
+
+    /// Recursively walk through all subfolders in t he project's endpoints folder.
+    fn walk_simple_endpoints_files(
+        dir: PathBuf,
+    ) -> BoxFuture<'static, Result<SimpleEndpointsByFile>> {
+        Box::pin(async move {
+            let mut endpoints = SimpleEndpointsByFile::new();
+
+            if let Ok(mut endpoints_path) = read_dir(dir).await {
+                while let Ok(Some(endpoint_path)) = endpoints_path.next_entry().await {
+                    let entry_metadata = endpoint_path.metadata().await?;
+                    match entry_metadata.is_dir() {
+                        true => {
+                            // Recurse into that directory.
+                            match Self::walk_simple_endpoints_files(endpoint_path.path()).await {
+                                Ok(inner_endpoints) => {
+                                    endpoints.append(&mut inner_endpoints.to_owned())
                                 }
-                                endpoints.push((Some(endpoint_path.path()), new_endpoints))
+                                Err(err) => return Err(err),
                             }
-                            Err(err) => {
-                                Err(anyhow!(
-                                    "Cannot deserialize the endpoints definition file '{}'.%{}",
-                                    endpoint_path.file_name().display(),
-                                    err.to_string()
-                                ))?;
+                        }
+                        false => {
+                            match read(endpoint_path.path()).await {
+                                Ok(file_buffer) => {
+                                    match serde_json::from_slice::<CheapVec<SimpleEndpoint>>(
+                                        &file_buffer,
+                                    ) {
+                                        Ok(new_endpoints) => {
+                                            // Check whether an endpoint has been auto-generated.
+                                            let mut _new_endpoints_iter = new_endpoints.iter();
+                                            while let Some(endpoint) = _new_endpoints_iter.next() {
+                                                if *endpoint.auto_generated() {
+                                                    bail!(
+                                                        "The endpoint `{}` from file `{}` cannot be marked as auto-generated.",
+                                                        endpoint.id(),
+                                                        endpoint_path.path().display()
+                                                    );
+                                                }
+                                            }
+                                            endpoints
+                                                .push((Some(endpoint_path.path()), new_endpoints))
+                                        }
+                                        Err(err) => {
+                                            Err(anyhow!(
+                                                "Cannot deserialize the endpoints definition file '{}'.%{}",
+                                                endpoint_path.file_name().display(),
+                                                err.to_string()
+                                            ))?;
+                                        }
+                                    };
+                                }
+                                Err(err) => {
+                                    Err(anyhow!(
+                                        "Cannot open the endpoints definition file '{}'.%{}",
+                                        endpoint_path.file_name().display(),
+                                        err.to_string()
+                                    ))?;
+                                }
                             }
-                        };
-                    }
-                    Err(err) => {
-                        Err(anyhow!(
-                            "Cannot open the endpoints definition file '{}'.%{}",
-                            endpoint_path.file_name().display(),
-                            err.to_string()
-                        ))?;
+                        }
                     }
                 }
             }
 
             debug!("Deserialized user's endpoints: {:#?}", endpoints);
 
-            Ok(Some(endpoints))
-        } else {
-            warn!(
-                "Endpoints directory (`./endpoints`) cannot be found. Omitting user endpoints..."
-            );
-
-            Ok(None)
-        }
+            Ok(endpoints)
+        })
     }
 
     /// Sets simple endpoints files from the app's context.
@@ -278,7 +318,12 @@ impl AppCx {
         match target_path {
             Some(target_path) => {
                 // Update only a specific file.
+
+                // Create all path's subdirectories if needed.
+                create_dir_all(target_path.parent().unwrap()).await?;
+
                 let simple_endpoints_by_file_guard = self.simple_endpoints_by_file.read().await;
+
                 match simple_endpoints_by_file_guard.iter().find(|(opt_file, _)| {
                     opt_file
                         .to_owned()
@@ -303,6 +348,9 @@ impl AppCx {
 
                 for (target_path, simple_endpoints) in simple_endpoints_by_file_guard.iter() {
                     if let Some(target_path) = target_path {
+                        // Create all path's subdirectories if needed.
+                        create_dir_all(target_path.parent().unwrap()).await?;
+
                         let content = serde_json::to_string_pretty(&simple_endpoints)?;
 
                         write(target_path, content).await?;
@@ -318,6 +366,9 @@ impl AppCx {
     pub async fn get_endpoints(&self) -> Result<SimpleEndpointsByFile> {
         let executor_build_guard = RuntimeCx::acquire().build().read().await;
 
+        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
+        let endpoints_dir = workspace_root.join("endpoints");
+
         // Get user-defined endpoints by file.
         let mut simple_endpoints_by_file = self
             .simple_endpoints_by_file
@@ -327,6 +378,20 @@ impl AppCx {
             .iter()
             .cloned()
             .collect::<SimpleEndpointsByFile>();
+
+        // Make user-defined endpoints' path relative to the project's endpoints folder.
+        simple_endpoints_by_file
+            .iter_mut()
+            .for_each(|(path_buf, _)| {
+                if let Some(path) = path_buf.to_owned() {
+                    let path = Path::new(&path);
+                    *path_buf = Some(
+                        path.strip_prefix(endpoints_dir.to_owned())
+                            .unwrap_or(path)
+                            .to_path_buf(),
+                    );
+                }
+            });
 
         // Get all the endpoints that have been injected and automatically generated.
         {
@@ -385,7 +450,9 @@ impl AppCx {
         // Add the endpoint to the Silence's app context.
         let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
 
-        let target_path = workspace_root.join("endpoints").join(&target);
+        let target_path = workspace_root
+            .join("endpoints")
+            .join(&target.trim_matches('/'));
 
         {
             let mut simple_endpoint_by_file_guard = self.simple_endpoints_by_file.write().await;

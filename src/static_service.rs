@@ -57,7 +57,7 @@ impl Service<RouterRequest> for StaticService {
 
                             let content = file.data();
 
-                            Some(String::from_utf8(content).unwrap())
+                            Some(String::from_utf8(content.to_vec()).unwrap()) // it requires `.to_vec()` at release.
                         } else {
                             response =
                                 response.header("Content-Type", "application/json; charset=utf-8");

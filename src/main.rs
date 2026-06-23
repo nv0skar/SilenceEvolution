@@ -33,11 +33,11 @@ static GLOBAL: MiMalloc = MiMalloc;
 #[command(
     name = "silence",
     version,
-    about = "An educational framework for deploying APIs based on a MySQL schema and web applications (Waveless' wrapper).",
+    about = "An educational framework for deploying APIs based on a MySQL schema and web applications.",
     propagate_version = true
 )]
 struct SilenceCLI {
-    /// Whether to enable debug mode in the compiler.
+    /// Whether to enable debug mode.
     #[arg(short = 'D', long = "debug", default_value_t = false)]
     debug: bool,
 

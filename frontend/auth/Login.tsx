@@ -36,6 +36,7 @@ export default () => {
     return (
         <>
             <form
+                class="[&_span]:mb-1"
                 onSubmit={submit_login}
                 onInput={(event) => {
                     context.set_error(undefined);
@@ -49,7 +50,7 @@ export default () => {
                 }}
             >
                 <fieldset class="fieldset">
-                    <label class="grid gap-1">
+                    <label>
                         <span class="label">Email</span>
                         <input
                             name="email"
@@ -63,7 +64,7 @@ export default () => {
                         </p>
                     </label>
 
-                    <label class="grid gap-1">
+                    <label>
                         <span class="label">Password</span>
                         <input
                             name="password"

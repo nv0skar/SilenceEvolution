@@ -16,7 +16,7 @@ use std::any::{Any, TypeId};
 use std::convert::Infallible;
 use std::env::current_dir;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 use std::task::Poll;
 
@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use struct_patch::*;
 use tokio::{
-    fs::{create_dir, read, read_dir, write},
+    fs::{create_dir, create_dir_all, read, read_dir, try_exists, write},
     sync::{OnceCell, RwLock},
 };
 use tower::Service;

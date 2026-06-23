@@ -87,7 +87,8 @@ impl AnyExecute for EndpointsManager {
                     .map_err(|err| {
                         RequestError::Expected(
                             StatusCode::BAD_REQUEST,
-                            format!("Endpoint already exists. {}", err).to_compact_string(),
+                            format!("{}. Operation might have been partially completed.", err)
+                                .to_compact_string(),
                         )
                     })?;
 
@@ -116,7 +117,11 @@ impl AnyExecute for EndpointsManager {
                     .set_endpoint(simple_endpoint_id, simple_endpoint_patch)
                     .await
                     .map_err(|err| {
-                        RequestError::Expected(StatusCode::BAD_REQUEST, err.to_compact_string())
+                        RequestError::Expected(
+                            StatusCode::BAD_REQUEST,
+                            format!("{}. Operation might have been partially completed.", err)
+                                .to_compact_string(),
+                        )
                     })?;
 
                 Ok(ExecuteOutput::Json(None, json!({})))
@@ -134,7 +139,11 @@ impl AnyExecute for EndpointsManager {
                     .delete_endpoint(simple_endpoint_id)
                     .await
                     .map_err(|err| {
-                        RequestError::Expected(StatusCode::BAD_REQUEST, err.to_compact_string())
+                        RequestError::Expected(
+                            StatusCode::BAD_REQUEST,
+                            format!("{}. Operation might have been partially completed.", err)
+                                .to_compact_string(),
+                        )
                     })?;
 
                 Ok(ExecuteOutput::Json(None, json!({})))

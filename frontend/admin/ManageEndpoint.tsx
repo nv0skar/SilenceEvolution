@@ -84,14 +84,12 @@ export default (_: RouteSectionProps) => {
 
         if (endpoint_data) {
             for (const field in req) {
-                // @ts-ignore
-                const value = req[field as keyof typeof EndpointStruct];
+                const value = req[field as keyof EndpointStruct];
                 if (
                     value === undefined ||
                     (!Array.isArray(value) && (value as string).length === 0)
                 )
-                    // @ts-ignore
-                    delete req[field as keyof typeof EndpointStruct];
+                    delete req[field as keyof EndpointStruct];
             }
         }
 
@@ -154,7 +152,7 @@ export default (_: RouteSectionProps) => {
         <>
             <div class="grid gap-2 py-8">
                 <div>
-                    <h1 class="text-3xl pt-4 font-bold">
+                    <h1 class="text-3xl text-center pt-4 font-bold">
                         {endpoint_data !== undefined
                             ? endpoint_data.endpoint.id
                             : "New endpoint"}
@@ -183,6 +181,7 @@ export default (_: RouteSectionProps) => {
                     </Show>
                     <form
                         id="form"
+                        class="[&_span]:mb-1"
                         onInput={(event) => {
                             set_error(undefined);
 
@@ -194,13 +193,13 @@ export default (_: RouteSectionProps) => {
                             } else submit?.classList.add("btn-disabled");
                         }}
                     >
-                        <fieldset class="fieldset [&_.input]:w-full lg:grid-cols-3">
-                            <label class="grid gap-1">
+                        <fieldset class="fieldset [&_.input]:w-full lg:grid-cols-2 gap-3">
+                            <label>
                                 <span class="label">ID</span>
                                 <input
                                     name="id"
                                     type="text"
-                                    class="input"
+                                    class="input peer"
                                     placeholder={
                                         endpoint_data
                                             ? endpoint_data.endpoint.id
@@ -208,9 +207,12 @@ export default (_: RouteSectionProps) => {
                                     }
                                     required={endpoint_data === undefined}
                                 />
+                                <p class="text-info pt-1 hidden peer-focus:block">
+                                    An unique identifier for each endpoint.
+                                </p>
                             </label>
 
-                            <label class="grid gap-1">
+                            <label>
                                 <span class="label">Route</span>
                                 <input
                                     name="route"
@@ -226,43 +228,12 @@ export default (_: RouteSectionProps) => {
                                 />
                             </label>
 
-                            <label class="grid gap-1">
-                                <span class="label">Description</span>
-                                <input
-                                    name="description"
-                                    type="text"
-                                    class="input"
-                                    value={
-                                        endpoint_data
-                                            ? (endpoint_data.endpoint
-                                                  .description ?? "")
-                                            : ""
-                                    }
-                                    placeholder="Description"
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
-                                <span class="label">Version</span>
-                                <input
-                                    name="version"
-                                    type="text"
-                                    class="input"
-                                    placeholder={
-                                        endpoint_data
-                                            ? (endpoint_data.endpoint.version ??
-                                              "—")
-                                            : "Version"
-                                    }
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
+                            <label>
                                 <span class="label">Method</span>
                                 <input
                                     name="method"
                                     type="text"
-                                    class="input"
+                                    class="input peer"
                                     placeholder={
                                         endpoint_data
                                             ? endpoint_data.endpoint.method
@@ -270,32 +241,17 @@ export default (_: RouteSectionProps) => {
                                     }
                                     required={endpoint_data === undefined}
                                 />
+                                <p class="text-info pt-1 hidden peer-focus:block">
+                                    HINT: available GET, POST, PUT and DELETE.
+                                </p>
                             </label>
 
-                            <label class="grid gap-1">
-                                <span class="label">Query params</span>
-                                <input
-                                    name="query_params"
-                                    type="text"
-                                    class="input"
-                                    value={
-                                        endpoint_data
-                                            ? (
-                                                  endpoint_data.endpoint
-                                                      .query_params ?? [""]
-                                              ).join(", ")
-                                            : ""
-                                    }
-                                    placeholder="Query params"
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
+                            <label>
                                 <span class="label">Body params</span>
                                 <input
                                     name="body_params"
                                     type="text"
-                                    class="input"
+                                    class="input peer"
                                     value={
                                         endpoint_data
                                             ? (
@@ -306,92 +262,176 @@ export default (_: RouteSectionProps) => {
                                     }
                                     placeholder="Body params"
                                 />
-                            </label>
-
-                            <label class="grid gap-1">
-                                <span class="label">Query</span>
-                                <textarea
-                                    name="query"
-                                    class="input whitespace-normal"
-                                    value={
-                                        endpoint_data
-                                            ? (endpoint_data.endpoint.query ??
-                                              "")
-                                            : ""
-                                    }
-                                    placeholder="Query"
-                                    required={endpoint_data === undefined}
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
-                                <span class="label">Allowed roles</span>
-                                <input
-                                    name="allowed_roles"
-                                    type="text"
-                                    class="input"
-                                    value={
-                                        endpoint_data
-                                            ? (
-                                                  endpoint_data.endpoint
-                                                      .allowed_roles ?? [""]
-                                              ).join(", ")
-                                            : ""
-                                    }
-                                    placeholder="Allowed roles"
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
-                                <span class="label">Path</span>
-                                <input
-                                    name="path"
-                                    type="text"
-                                    class="input"
-                                    placeholder={
-                                        endpoint_data
-                                            ? (endpoint_data.path ?? "—")
-                                            : "Path"
-                                    }
-                                    readOnly={endpoint_data !== undefined}
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
-                                <span class="label">Requires auth</span>
-                                <input
-                                    name="require_auth"
-                                    type="checkbox"
-                                    class="checkbox"
-                                    checked={
-                                        endpoint_data
-                                            ? endpoint_data.endpoint
-                                                  .require_auth
-                                            : false
-                                    }
-                                />
-                            </label>
-
-                            <label class="grid gap-1">
-                                <span class="label">Injects user id</span>
-                                <input
-                                    name="inject_user_id"
-                                    type="checkbox"
-                                    class="checkbox"
-                                    checked={
-                                        endpoint_data
-                                            ? endpoint_data.endpoint
-                                                  .inject_user_id
-                                            : false
-                                    }
-                                />
+                                <p class="text-info pt-1 hidden peer-focus:block">
+                                    Parameters sent in the request's body that
+                                    will be accepted by the endpoint and could
+                                    be inserted in the query. Parameters should
+                                    be comma-separated.
+                                </p>
                             </label>
                         </fieldset>
+
+                        <label class="my-1">
+                            <span class="label text-xs">Query</span>
+                            <textarea
+                                name="query"
+                                class="input whitespace-normal w-full h-14"
+                                value={
+                                    endpoint_data
+                                        ? (endpoint_data.endpoint.query ?? "")
+                                        : ""
+                                }
+                                placeholder="Query"
+                                required={endpoint_data === undefined}
+                            />
+                        </label>
+
+                        <details class="collapse bg-base-100 border border-base-300 rounded-2xl mt-3 my-1">
+                            <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-200">
+                                Extras
+                            </summary>
+                            <div class="collapse-content">
+                                <fieldset class="fieldset [&_.input]:w-full lg:grid-cols-3 gap-3">
+                                    <label>
+                                        <span class="label">Version</span>
+                                        <input
+                                            name="version"
+                                            type="text"
+                                            class="input"
+                                            value={!endpoint_data ? "v1" : ""}
+                                            placeholder={
+                                                endpoint_data
+                                                    ? (endpoint_data.endpoint
+                                                          .version ?? "—")
+                                                    : "Version"
+                                            }
+                                        />
+                                    </label>
+
+                                    <label>
+                                        <span class="label">Description</span>
+                                        <input
+                                            name="description"
+                                            type="text"
+                                            class="input"
+                                            value={
+                                                endpoint_data
+                                                    ? (endpoint_data.endpoint
+                                                          .description ?? "")
+                                                    : ""
+                                            }
+                                            placeholder="Description"
+                                        />
+                                    </label>
+
+                                    <label>
+                                        <span class="label">Query params</span>
+                                        <input
+                                            name="query_params"
+                                            type="text"
+                                            class="input peer"
+                                            value={
+                                                endpoint_data
+                                                    ? (
+                                                          endpoint_data.endpoint
+                                                              .query_params ?? [
+                                                              "",
+                                                          ]
+                                                      ).join(", ")
+                                                    : ""
+                                            }
+                                            placeholder="Query params"
+                                        />
+                                        <p class="text-info pt-1 hidden peer-focus:block">
+                                            Query params that will be accepted
+                                            by the endpoint and could be
+                                            inserted in the query (SQL).
+                                            Parameters should be
+                                            comma-separated.
+                                        </p>
+                                    </label>
+
+                                    <label>
+                                        <span class="label">Allowed roles</span>
+                                        <input
+                                            name="allowed_roles"
+                                            type="text"
+                                            class="input"
+                                            value={
+                                                endpoint_data
+                                                    ? (
+                                                          endpoint_data.endpoint
+                                                              .allowed_roles ?? [
+                                                              "",
+                                                          ]
+                                                      ).join(", ")
+                                                    : ""
+                                            }
+                                            placeholder="Allowed roles"
+                                        />
+                                    </label>
+
+                                    <label>
+                                        <span class="label">Path</span>
+                                        <input
+                                            name="path"
+                                            type="text"
+                                            class="input"
+                                            placeholder={
+                                                endpoint_data
+                                                    ? (endpoint_data.path ??
+                                                      "—")
+                                                    : "Path"
+                                            }
+                                            readOnly={
+                                                endpoint_data !== undefined
+                                            }
+                                        />
+                                    </label>
+                                </fieldset>
+
+                                <fieldset class="fieldset [&_.input]:w-full text-sm lg:grid-cols-3 gap-3 my-1">
+                                    <label class="align-middle">
+                                        <span class="label mr-2">
+                                            Requires auth
+                                        </span>
+                                        <input
+                                            name="require_auth"
+                                            type="checkbox"
+                                            class="checkbox"
+                                            checked={
+                                                endpoint_data
+                                                    ? endpoint_data.endpoint
+                                                          .require_auth
+                                                    : false
+                                            }
+                                        />
+                                    </label>
+
+                                    <label class="align-middle">
+                                        <span class="label mr-2">
+                                            Injects user id into query
+                                        </span>
+                                        <input
+                                            name="inject_user_id"
+                                            type="checkbox"
+                                            class="checkbox"
+                                            checked={
+                                                endpoint_data
+                                                    ? endpoint_data.endpoint
+                                                          .inject_user_id
+                                                    : false
+                                            }
+                                        />
+                                    </label>
+                                </fieldset>
+                            </div>
+                        </details>
                     </form>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 [&_button]:rounded-xl [&_button]:hover:shadow">
                         <button
                             id="delete_endpoint"
-                            class="btn btn-active rounded-xl bg-red-500 text-white max-h-full"
+                            class="btn btn-active bg-red-600 text-white max-h-full"
                             classList={{
                                 hidden: endpoint_data === undefined,
                             }}
@@ -418,7 +458,7 @@ export default (_: RouteSectionProps) => {
                         <button
                             id="submit"
                             type="submit"
-                            class="btn btn-neutral hover:shadow-xl"
+                            class="btn text-black btn-success"
                             classList={{
                                 "btn-disabled": endpoint_data === undefined,
                             }}

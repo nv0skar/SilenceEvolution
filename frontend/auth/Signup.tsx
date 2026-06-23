@@ -37,6 +37,7 @@ export default () => {
     return (
         <>
             <form
+                class="[&_span]:mb-1"
                 onSubmit={submit_signup}
                 onInput={(event) => {
                     context.set_error(undefined);
@@ -69,7 +70,7 @@ export default () => {
                 }}
             >
                 <fieldset class="fieldset">
-                    <label class="grid gap-1">
+                    <label>
                         <span class="label">Name</span>
                         <input
                             name="name"
@@ -80,7 +81,7 @@ export default () => {
                         />
                     </label>
 
-                    <label class="grid gap-1">
+                    <label>
                         <span class="label">Email</span>
                         <input
                             name="email"
@@ -94,7 +95,7 @@ export default () => {
                         </p>
                     </label>
 
-                    <label class="grid gap-1">
+                    <label>
                         <span class="label">Password</span>
                         <input
                             id="password"
@@ -110,7 +111,7 @@ export default () => {
                         </p>
                     </label>
 
-                    <label class="grid gap-1">
+                    <label>
                         <span class="label">Confirm password</span>
                         <input
                             id="password_check"
@@ -129,7 +130,7 @@ export default () => {
                         <span class="text-warning text-xs font-bold">
                             IMPORTANT WARNING: passwords are sent and stored in
                             the database in plain text, passwords aren't hashed
-                            whatsoever.
+                            whatsoever (due to academic requirements).
                         </span>
                     </label>
 
