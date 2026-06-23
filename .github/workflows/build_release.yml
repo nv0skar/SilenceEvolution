@@ -77,7 +77,7 @@ jobs:
                       artifact_name: silence
                       bin_name: silence
                     - os: windows-latest
-                      target: x86_64-pc-windows-msvc
+                      target: x86_64-pc-windows-gnu
                       artifact_name: silence
                       bin_name: silence.exe
 
@@ -142,7 +142,7 @@ jobs:
                   for target in \
                       "silence_x86_64-unknown-linux-gnu/silence" \
                       "silence_aarch64-apple-darwin/silence" \
-                      "silence_x86_64-pc-windows-msvc/silence.exe"
+                      "silence_x86_64-pc-windows-gnu/silence.exe"
                   do
                       if [ ! -f "artifacts/$target" ]; then
                           echo "❌ Missing artifact: $target"
@@ -162,7 +162,7 @@ jobs:
                   files: |
                       artifacts/silence_x86_64-unknown-linux-gnu/silence
                       artifacts/silence_aarch64-apple-darwin/silence
-                      artifacts/silence_x86_64-pc-windows-msvc/silence.exe
+                      artifacts/silence_x86_64-pc-windows-gnu/silence.exe
 
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
