@@ -1,0 +1,169 @@
+name: Build Silence
+
+on:
+    workflow_dispatch:
+        inputs:
+            build_targets:
+                description: "Target platforms Linux, macOS & Windows"
+                required: false
+                default: "windows,linux,macos"
+    release:
+        types: [created]
+
+permissions:
+    contents: write
+    actions: write
+
+jobs:
+    build-frontend:
+        name: Build frontend
+        runs-on: ubuntu-latest
+        if: |
+            github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'release' &&
+             contains(fromJson('["nv0skar"]'), github.actor))
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v1
+              with:
+                  bun-version: latest
+
+            - name: Cache Bun dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.bun/install/cache
+                      node_modules
+                  key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+                  restore-keys: |
+                      ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+                      ${{ runner.os }}-bun-
+
+            - name: Install frontend dependencies
+              run: bun install
+
+            - name: Build frontend
+              run: bun run build
+
+            - name: Upload frontend dist
+              uses: actions/upload-artifact@v4
+              with:
+                  name: frontend
+                  path: dist/
+                  retention-days: 7
+
+    build:
+        name: Build Silence (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        if: |
+            github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'release' &&
+             contains(fromJson('["nv0skar"]'), github.actor))
+
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: ubuntu-latest
+                      target: x86_64-unknown-linux-gnu
+                      artifact_name: silence
+                    - os: macos-latest
+                      target: aarch64-apple-darwin
+                      artifact_name: silence
+                    - os: windows-latest
+                      target: x86_64-pc-windows-msvc
+                      artifact_name: silence
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  target: ${{ matrix.target }}
+                  override: true
+
+              # Download pre-built frontend.
+            - name: Download frontend dist
+              uses: actions/download-artifact@v4
+              with:
+                  name: frontend
+                  path: dist/
+
+            - name: Cache Rust dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/bin/
+                      ~/.cargo/registry/index/
+                      ~/.cargo/registry/cache/
+                      ~/.cargo/git/db/
+                      target/
+                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+                      ${{ runner.os }}-cargo-
+
+            # Build main binary.
+            - name: Build Rust application
+              uses: actions-rs/cargo@v1
+              with:
+                  command: build
+                  args: --release --target ${{ matrix.target }}
+
+            # Upload binary artifact.
+            - name: Upload binary
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ${{ matrix.artifact_name }}_${{ matrix.target }}
+                  path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+                  retention-days: 7
+
+    create-release-package:
+        name: Upload Binaries to Release
+        runs-on: ubuntu-latest
+        needs: build
+        if: github.event_name == 'release'
+        steps:
+            - name: Download all binaries
+              uses: actions/download-artifact@v4
+              with:
+                  path: artifacts/
+
+            # Ensure all binaries are present.
+            - name: Verify all binaries are present
+              run: |
+                  set -e
+                  missing=0
+                  for target in \
+                      "silence_x86_64-unknown-linux-gnu/silence" \
+                      "silence_aarch64-apple-darwin/silence" \
+                      "silence_x86_64-pc-windows-msvc/silence.exe"
+                  do
+                      if [ ! -f "artifacts/$target" ]; then
+                          echo "❌ Missing artifact: $target"
+                          missing=1
+                      else
+                          echo "✅ Found artifact: $target"
+                      fi
+                  done
+                  if [ $missing -ne 0 ]; then
+                      echo "❌ One or more binaries are missing – aborting release upload."
+                      exit 1
+                  fi
+
+            - name: Upload binaries to release
+              uses: softprops/action-gh-release@v3
+              with:
+                  files: |
+                      artifacts/silence_x86_64-unknown-linux-gnu/silence
+                      artifacts/silence_aarch64-apple-darwin/silence
+                      artifacts/silence_x86_64-pc-windows-msvc/silence.exe
+
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
