@@ -40,8 +40,12 @@ pub async fn new_project(
         .downcast::<mysql::MySQLConnection>()
         .unwrap();
 
-    let new_project_script =
-        String::from_utf8(NewMigrations::get("new_project.sql").unwrap().data())?;
+    let new_project_script = String::from_utf8(
+        NewMigrations::get("new_project.sql")
+            .unwrap()
+            .data()
+            .to_vec(),
+    )?; // it requires `.to_vec()` at release.
 
     let queries = new_project_script
         .lines()
