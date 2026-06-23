@@ -36,11 +36,6 @@ pub struct Config {
 
     /// Defines MySQL connection config.
     database_conn: MySQLDBConnectionConfig,
-
-    /// Defines the order of the bootstrap scripts that will be executed first.
-    /// NOTE: all the files in the `./bootstrap` will be executed.
-    #[serde(default, skip_serializing_if = "CheapVec::is_empty")]
-    bootstrap_scripts: CheapVec<CompactString>,
 }
 
 impl Default for Config {
@@ -57,7 +52,6 @@ impl Default for Config {
                 "iissi$user".to_compact_string(),
                 "example_db".to_compact_string(),
             ),
-            bootstrap_scripts: Default::default(),
         }
     }
 }
@@ -76,10 +70,10 @@ pub struct InternalParams {
 impl Default for InternalParams {
     fn default() -> Self {
         Self {
-            user_id: "usuarioId".to_compact_string(),
-            users_target_table: "users".to_compact_string(),
-            sessions_target_table: "sessions".to_compact_string(),
-            roles_target_table: "roles".to_compact_string(),
+            user_id: "user_id".to_compact_string(),
+            users_target_table: "silence_users".to_compact_string(),
+            sessions_target_table: "silence_sessions".to_compact_string(),
+            roles_target_table: "silence_roles".to_compact_string(),
         }
     }
 }

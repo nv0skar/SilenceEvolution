@@ -75,7 +75,8 @@ impl AppCx {
         Ok(())
     }
 
-    /// Loads the Silence's app's settings into the Waveless' runtime context.
+    /// Loads the Silence's app's settings into the Waveless' runtime context. Used when the runtime context
+    /// is already initialized and needs to be mutated.
     /// NOTE: this method requires `waveless_executor::RuntimeCx` to be initialized otherwise it will panic.
     pub async fn set_runtime_config(&self) -> Result<()> {
         let mut runtime_build_guard = RuntimeCx::acquire().build().write().await;
@@ -107,7 +108,7 @@ impl AppCx {
                 ),
             },
             Err(_) => {
-                warn!("Cannot find the `config.json` file. A setup will be prompted.");
+                warn!("Cannot find the `config.json` file.");
                 return Ok(None);
             }
         };

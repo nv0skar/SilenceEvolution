@@ -4,11 +4,13 @@
 pub mod app_cx;
 pub mod config;
 pub mod internal_endpoints;
+pub mod new;
 pub mod simple_endpoint;
 pub mod static_service;
 
 pub use app_cx::*;
 pub use internal_endpoints::*;
+pub use new::*;
 pub use simple_endpoint::*;
 pub use static_service::*;
 

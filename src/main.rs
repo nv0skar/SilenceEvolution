@@ -19,40 +19,67 @@ use std::net::SocketAddr;
 use rustyrosetta::*;
 
 use anyhow::{Result, anyhow};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use compact_str::*;
 use iocraft::prelude::*;
 use mimalloc::MiMalloc;
+use nestify::*;
 use tower::util::BoxCloneService;
-use tracing::*;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-#[derive(Parser)]
-#[command(
-    name = "silence",
-    version,
-    about = "An educational framework for deploying APIs based on a MySQL schema and web applications.",
-    propagate_version = true
-)]
-struct SilenceCLI {
-    /// Whether to enable debug mode.
-    #[arg(short = 'D', long = "debug", default_value_t = false)]
-    debug: bool,
-
-    /// Whether to show all the loaded endpoints on start.
-    #[arg(
-        short = 'd',
-        long = "display_endpoints",
-        default_value_t = false,
-        help = "Whether to show all the loaded endpoints on start."
+nest! {
+    #[derive(Parser)]
+    #[command(
+        name = "silence",
+        version,
+        about = "An educational framework for deploying APIs based on a MySQL schema and web applications.",
+        propagate_version = true
     )]
-    display_endpoints_on_start: bool,
+    struct SilenceCLI {
+        /// Whether to enable debug mode.
+        #[arg(short = 'D', long = "debug", default_value_t = false)]
+        debug: bool,
 
-    /// Server listening address.
-    #[arg(short = 'l', long = "listen", help = "Server listening address.")]
-    addr: Option<SocketAddr>,
+        /// Whether to show all the loaded endpoints on start.
+        #[arg(
+            short = 'd',
+            long = "display_endpoints",
+            default_value_t = false,
+            help = "Whether to show all the loaded endpoints on start."
+        )]
+        display_endpoints_on_start: bool,
+
+        /// Server listening address.
+        #[arg(short = 'l', long = "listen", help = "Server listening address.")]
+        addr: Option<SocketAddr>,
+
+        #[command(subcommand)]
+        subcommand: Option<
+            #[derive(Subcommand)]
+            enum Subcommands {
+                /// Creates a new Silence project.
+                #[command(about = "Creates a new Silence project.")]
+                New {
+                    #[arg(help = "Project's name")]
+                    name: CompactString,
+
+                    #[arg(long = "db_host", help = "Database's address.")]
+                    db_host: Option<SocketAddr>,
+
+                    #[arg(short = 'n', long = "db_name", help = "Database's name.")]
+                    db_name: CompactString,
+
+                    #[arg(short = 'u', long = "db_user", help = "Database's user.")]
+                    db_user: CompactString,
+
+                    #[arg(short = 'p', long = "db_password", help = "Database's password.")]
+                    db_password: CompactString,
+                }
+            }
+        >
+    }
 }
 
 fn main() -> Result<()> {
@@ -64,6 +91,18 @@ async fn try_main() -> Result<ResultContext> {
 
     // Setup logging.
     subscribe_logging(cli.debug)?;
+
+    // Check whether a new Silence project should be created.
+    if let Some(Subcommands::New {
+        name,
+        db_host,
+        db_name,
+        db_user,
+        db_password,
+    }) = cli.subcommand
+    {
+        return new_project(name, db_host, db_name, db_user, db_password).await;
+    }
 
     // Loads Silence's app's context.
     let app_cx = AppCx::from_workspace().await?;
@@ -213,6 +252,29 @@ async fn try_main() -> Result<ResultContext> {
                 .executor()
                 .to_owned();
 
+            let format_link = |mut link: String| -> String {
+                if !link.starts_with("http") {
+                    link.insert_str(0, "http://");
+                }
+
+                format!("\u{1b}]8;;{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\", link, link)
+            };
+
+            element! {
+                View(
+                    padding_left: 1,
+                    padding_right: 1,
+                    border_style: BorderStyle::None,
+                ) {
+                    MixedText(align: TextAlign::Left, contents: vec![
+                        MixedTextContent::new("⚡️ "),
+                        MixedTextContent::new(format!("Silence server running at {}", format_link(runtime_executor.listening_addr().unwrap().to_string()))).color(iocraft::Color::White).weight(Weight::Bold),
+                        MixedTextContent::new(format!("\nYou can access the admin panel from {}", format_link([runtime_executor.listening_addr().unwrap().to_string(), "/admin".to_string()].join("")))).color(iocraft::Color::Green),
+                    ])
+                }
+            }
+            .print();
+
             serve(
                 match runtime_executor.listening_addr() {
                     Some(addr) => Some(addr.to_owned()),
@@ -223,7 +285,9 @@ async fn try_main() -> Result<ResultContext> {
             .await?;
         }
         None => {
-            info!("Setup mode.")
+            return Err(anyhow!(
+                "We couldn't find a Silence project in the current working directory.%HINT: create a new Silence project with the `new` subcommand."
+            ));
         }
     }
 
