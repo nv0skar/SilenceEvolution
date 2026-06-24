@@ -2,11 +2,6 @@ name: Build Silence
 
 on:
     workflow_dispatch:
-        inputs:
-            build_targets:
-                description: "Target platforms (linux, macos & windows)"
-                required: false
-                default: "windows,linux,macos"
     release:
         types: [created]
 
@@ -62,8 +57,7 @@ jobs:
         if: |
             github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'release' &&
-             contains(fromJson('["nv0skar"]'), github.actor)) ||
-            (github.event_name == 'workflow_dispatch' && contains(inputs.build_targets, matrix.short_name))
+             contains(fromJson('["nv0skar"]'), github.actor))
 
         strategy:
             fail-fast: false
