@@ -9,7 +9,7 @@ import ManageEndpoint from "./ManageEndpoint.tsx";
 import Users from "./Users.tsx";
 import ManageUser from "./ManageUser.tsx";
 
-import Settings from "./Settings.tsx";
+import Config from "./Config.tsx";
 
 import { render } from "solid-js/web";
 import { Router, Route } from "@solidjs/router";
@@ -30,7 +30,7 @@ render(
                 <Route path="/:id" component={ManageUser} />
                 <Route path="/new" component={ManageUser} />
             </Route>
-            <Route path="/settings" component={Settings} />
+            <Route path="/config" component={Config} />
         </Router>
     ),
     root!,

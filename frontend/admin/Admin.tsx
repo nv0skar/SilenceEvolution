@@ -182,12 +182,12 @@ export default (props: RouteSectionProps) => {
                     <div class="flex h-full flex-col items-start fixed is-drawer-close:w-16 is-drawer-open:w-40">
                         <ul class="menu h-full bg-base-200 border-base-300 backdrop-blur shadow-xl rounded-2xl border m-2 p-2 gap-2 [&_li]:transition [&_li]:duration-200 [&_li]:hover:scale-105">
                             <li>
-                                <A href="/settings">
+                                <A href="/config">
                                     <span class="material-symbols-outlined scale-95">
                                         settings
                                     </span>
                                     <span class="is-drawer-close:hidden">
-                                        Settings
+                                        Config
                                     </span>
                                 </A>
                             </li>
