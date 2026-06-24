@@ -206,7 +206,7 @@ async fn try_main() -> Result<ResultContext> {
                                             .flatten() {
                                             element! {
                                                 View {
-                                                    Text(content: execute.query().to_string(), color: Color::Blue)
+                                                    Text(content: execute.queries().join("; "), color: Color::Blue)
                                                     Text(content: "(runtime parameters injected)", color: Color::DarkRed)
                                                 }
                                             }

@@ -101,22 +101,24 @@ export default (_: RouteSectionProps) => {
             },
         );
 
-        if (!res.ok) console.clear();
+        if (!res.ok) {
+            console.clear();
 
-        if (res.status === 200) {
-            endpoints_context.refetch_endpoints();
-
-            navigate("/endpoints", {
-                replace: false,
-                scroll: false,
-            });
-        } else {
             const data = (await res.json()) as {
                 error: string;
             };
 
             set_error(data.error);
+
+            return;
         }
+
+        endpoints_context.refetch_endpoints();
+
+        navigate("/endpoints", {
+            replace: false,
+            scroll: false,
+        });
     };
 
     const delete_endpoint = async () => {
@@ -161,7 +163,8 @@ export default (_: RouteSectionProps) => {
                 <Show
                     when={
                         endpoint_data === undefined ||
-                        endpoint_data.endpoint.query !== null
+                        endpoint_data.endpoint.query !== null ||
+                        !endpoint_data.endpoint.version?.includes("internal")
                     }
                     fallback={
                         <span>

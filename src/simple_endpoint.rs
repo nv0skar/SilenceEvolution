@@ -103,7 +103,7 @@ impl<'a> From<&'a waveless_commons::endpoint::Endpoint> for SimpleEndpoint {
                 .to_owned()
                 .map(|execute| execute.into_arc_any().downcast::<MySQLExecuteProxy>().ok())
                 .flatten()
-                .map(|mysql_execute| mysql_execute.query().to_compact_string())
+                .map(|mysql_execute| mysql_execute.queries().join("; ").to_compact_string())
             {
                 Some(query)
             } else {

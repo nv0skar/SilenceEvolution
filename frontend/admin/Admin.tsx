@@ -3,25 +3,15 @@
 
 import { type ConfigStruct } from "./Config";
 
-import {
-    createContext,
-    createEffect,
-    createResource,
-    createSignal,
-    on,
-    Show,
-    type Accessor,
-    type Resource,
-    type Setter,
-} from "solid-js";
+import { createContext, createResource, Show, type Resource } from "solid-js";
 
 import { A, type RouteSectionProps } from "@solidjs/router";
 
-export const UserContext = createContext<Resource<UserStruct>>();
+export const SessionContext = createContext<Resource<SessionStruct>>();
 
 export const ConfigContext = createContext<ConfigStruct>();
 
-interface UserStruct {
+interface SessionStruct {
     user_id: number;
     name: string;
     email: string;
@@ -35,14 +25,14 @@ const Logout = async () => {
 
 export default (props: RouteSectionProps) => {
     // Load user data.
-    const [user] = createResource(async (): Promise<UserStruct> => {
+    const [user] = createResource(async (): Promise<SessionStruct> => {
         const res = await fetch("/api/internal/whoami");
 
         if (!res.ok) console.clear();
 
         if (res.status === 200) {
             const data = (await res.json())[0];
-            return data as UserStruct;
+            return data as SessionStruct;
         } else {
             document.location = "/auth?redirect=/admin";
             throw new Error("User is not logged in.");
@@ -176,9 +166,9 @@ export default (props: RouteSectionProps) => {
                                     </div>
                                 }
                             >
-                                <UserContext.Provider value={user}>
+                                <SessionContext.Provider value={user}>
                                     {props.children}
-                                </UserContext.Provider>
+                                </SessionContext.Provider>
                             </Show>
                         </Show>
                     </div>

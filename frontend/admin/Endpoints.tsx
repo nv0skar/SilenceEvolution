@@ -1,7 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { UserContext } from "./Admin";
+import { SessionContext } from "./Admin";
 import { type EndpointStruct } from "./ManageEndpoint";
 
 import {
@@ -39,9 +39,9 @@ const REDUCED_FIELDS: Array<keyof EndpointStruct> = [
 ];
 
 export default (props: RouteSectionProps) => {
-    const user_context = useContext(UserContext);
+    const session_context = useContext(SessionContext);
 
-    if (!user_context) throw new Error("Can't find user's context");
+    if (!session_context) throw new Error("Can't find user's context");
 
     const navigate = useNavigate();
 
@@ -242,7 +242,7 @@ export default (props: RouteSectionProps) => {
                                 id="modal"
                                 class="relative lg:m-32 w-full h-fit px-4 bg-base-200 border-base-300 rounded-2xl border shadow-lg transition duration-300"
                                 classList={{
-                                    "opacity- 0 scale-75":
+                                    "opacity-0 scale-75":
                                         resolved_children() === undefined,
                                 }}
                                 onClick={(event) => {
@@ -277,7 +277,7 @@ export default (props: RouteSectionProps) => {
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <div class="text-sm table-auto border-collapse my-6">
+                        <div class="table text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
                                 <div class="table-row font-bold bg-base-200 [&_div]:w-auto [&_div]:p-2 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
                                     <div class="table-cell rounded-tl-xl!"></div>
@@ -354,7 +354,7 @@ export default (props: RouteSectionProps) => {
                                     </div>
                                 </div>
                             </div>
-                            <div class="table-row-group [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:shadow-xl [&>div]:hover:cursor-pointer">
+                            <div class="table-row-group [&>div]:even:bg-base-200 [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:shadow-xl [&>div]:hover:cursor-pointer">
                                 <Index
                                     each={endpoints()?.sort(
                                         (endpoint_pair_1, endpoint_pair_2) => {
@@ -365,68 +365,73 @@ export default (props: RouteSectionProps) => {
                                     )}
                                 >
                                     {(endpoint, ix) => (
-                                        <div
-                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
-                                            classList={{
-                                                "bg-base-200": ix % 2 === 1,
-                                                "hidden!":
-                                                    !get_full_data() &&
-                                                    endpoint().endpoint
-                                                        .query! === null,
-                                            }}
-                                            onClick={() =>
-                                                navigate(
-                                                    `/endpoints/${endpoint().endpoint.id}`,
-                                                    {
-                                                        replace: false,
-                                                        scroll: false,
-                                                    },
+                                        <Show
+                                            when={
+                                                get_full_data() ||
+                                                endpoint().endpoint.query! !==
+                                                    null ||
+                                                !endpoint().endpoint.version?.includes(
+                                                    "internal",
                                                 )
                                             }
                                         >
-                                            <div class="table-cell font-light pl-8!">
-                                                {ix}
-                                            </div>
-                                            <Index
-                                                each={Object.entries(
-                                                    endpoint()
-                                                        .endpoint as EndpointStruct,
-                                                )}
-                                            >
-                                                {(field, ix) => (
-                                                    <>
-                                                        <div
-                                                            class="table-cell"
-                                                            classList={{
-                                                                "hidden!":
-                                                                    !REDUCED_FIELDS.includes(
-                                                                        field()[0] as keyof EndpointStruct,
-                                                                    ) &&
-                                                                    !get_full_data(),
-                                                            }}
-                                                        >
-                                                            {
-                                                                // @ts-ignore
-                                                                (): Element => {
-                                                                    return render_field(
-                                                                        field,
-                                                                        ix,
-                                                                    );
-                                                                }
-                                                            }
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Index>
                                             <div
-                                                class="table-cell font-light pr-4!"
-                                                classList={{
-                                                    "hidden!": !get_full_data(),
-                                                }}
+                                                class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/endpoints/${endpoint().endpoint.id}`,
+                                                        {
+                                                            replace: false,
+                                                            scroll: false,
+                                                        },
+                                                    )
+                                                }
                                             >
-                                                {endpoint().path ?? "—"}
+                                                <div class="table-cell font-light pl-8!">
+                                                    {ix}
+                                                </div>
+                                                <Index
+                                                    each={Object.entries(
+                                                        endpoint()
+                                                            .endpoint as EndpointStruct,
+                                                    )}
+                                                >
+                                                    {(field, ix) => (
+                                                        <>
+                                                            <div
+                                                                class="table-cell"
+                                                                classList={{
+                                                                    "hidden!":
+                                                                        !REDUCED_FIELDS.includes(
+                                                                            field()[0] as keyof EndpointStruct,
+                                                                        ) &&
+                                                                        !get_full_data(),
+                                                                }}
+                                                            >
+                                                                {
+                                                                    // @ts-ignore
+                                                                    (): Element => {
+                                                                        return render_field(
+                                                                            field,
+                                                                            ix,
+                                                                        );
+                                                                    }
+                                                                }
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </Index>
+                                                <div
+                                                    class="table-cell font-light pr-4!"
+                                                    classList={{
+                                                        "hidden!":
+                                                            !get_full_data(),
+                                                    }}
+                                                >
+                                                    {endpoint().path ?? "—"}
+                                                </div>
                                             </div>
-                                        </div>
+                                        </Show>
                                     )}
                                 </Index>
                             </div>

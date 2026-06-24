@@ -1,30 +1,200 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { UserContext } from "./Admin";
+import { SessionContext } from "./Admin";
+import { type UserStruct } from "./ManageUser";
 
 import {
+    children,
     createContext,
     createEffect,
     createResource,
-    createSignal,
+    Index,
     on,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
 } from "solid-js";
 
-import { A, type RouteSectionProps } from "@solidjs/router";
+import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
 
-export default (_: RouteSectionProps) => {
-    const user_context = useContext(UserContext);
+export const UsersContext = createContext<{
+    users_data: Array<UserStruct>;
+    refetch_users: Function;
+}>();
 
-    if (!user_context) throw new Error("Can't find user's context");
+export default (props: RouteSectionProps) => {
+    const session_context = useContext(SessionContext);
+
+    if (!session_context) throw new Error("Can't find user's context");
+
+    const navigate = useNavigate();
+
+    // Load users.
+    const [users, { refetch }] = createResource(
+        async (): Promise<Array<UserStruct>> => {
+            const res = await fetch("/api/internal/admin/users");
+
+            if (!res.ok) console.clear();
+
+            if (res.status === 200) {
+                const data = (await res.json()) as Array<UserStruct>;
+
+                return data;
+            } else {
+                return [];
+            }
+        },
+    );
+
+    const resolved_children = children(() => props.children);
+
+    createEffect(
+        on(resolved_children, (resolved_children) => {
+            if (resolved_children !== undefined) {
+                document.body.style.overflow = "hidden";
+            } else {
+                document.body.style.overflow = "";
+            }
+        }),
+    );
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape")
+            navigate("/endpoints", {
+                replace: false,
+                scroll: false,
+            });
+    });
 
     return (
         <>
-            <h1>Users</h1>
+            <div>
+                <div class="flex items-center w-full">
+                    <h1 class="text-4xl font-bold">Users</h1>
+                    <div class="flex self-end text-right ml-auto items-center">
+                        <A
+                            class="btn text-sm self-end text-right ml-auto"
+                            href="/users/new"
+                        >
+                            <span class="material-symbols-outlined lg:hidden!">
+                                add
+                            </span>
+                            <span class="not-lg:hidden">Create new user</span>
+                        </A>
+                    </div>
+                </div>
+                <Show when={!users.loading}>
+                    <div
+                        class="fixed top-0 left-0 w-screen h-screen p-4 z-20 bg-base-100/5 backdrop-blur-md transition duration-300"
+                        classList={{
+                            "opacity-0 pointer-events-none":
+                                resolved_children() === undefined,
+                        }}
+                    >
+                        <div
+                            class="flex h-screen justify-center items-center"
+                            onClick={() =>
+                                navigate("/users", {
+                                    replace: false,
+                                    scroll: false,
+                                })
+                            }
+                        >
+                            <div
+                                id="modal"
+                                class="relative lg:m-32 w-full h-fit px-4 bg-base-200 border-base-300 rounded-2xl border shadow-lg transition duration-300"
+                                classList={{
+                                    "opacity-0 scale-75":
+                                        resolved_children() === undefined,
+                                }}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                }}
+                            >
+                                <A
+                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 backdrop-blur-2xs shadow-2xs scale-90 z-10"
+                                    href="/users"
+                                    noScroll
+                                    replace={false}
+                                >
+                                    <span class="material-symbols-outlined">
+                                        close
+                                    </span>
+                                </A>
+                                <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none">
+                                    <Show
+                                        when={resolved_children() !== undefined}
+                                    >
+                                        <UsersContext.Provider
+                                            value={{
+                                                users_data: users()!,
+                                                refetch_users: refetch,
+                                            }}
+                                        >
+                                            {props.children}
+                                        </UsersContext.Provider>
+                                    </Show>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <div class="table text-sm table-auto border-collapse my-6">
+                            <div class="table-header-group border-b-2 border-b-base-300">
+                                <div class="table-row font-bold bg-base-200 [&_div]:p-2 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                    <div class="table-cell rounded-tl-xl!"></div>
+                                    <div class="table-cell">Name</div>
+                                    <div class="table-cell">Email</div>
+                                    <div class="table-cell">Role</div>
+                                    <div class="table-cell rounded-tr-xl!">
+                                        Password
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-row-group [&>div]:even:bg-base-200 [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:shadow-xl [&>div]:hover:cursor-pointer">
+                                <Index
+                                    each={users()?.sort((user_1, user_2) => {
+                                        return user_1.name.localeCompare(
+                                            user_2.name,
+                                        );
+                                    })}
+                                >
+                                    {(user, _) => (
+                                        <div
+                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
+                                            onClick={() =>
+                                                navigate(
+                                                    `/users/${user().user_id}`,
+                                                    {
+                                                        replace: false,
+                                                        scroll: false,
+                                                    },
+                                                )
+                                            }
+                                        >
+                                            <div class="table-cell font-light pl-8!">
+                                                {user().user_id}
+                                            </div>
+                                            <div class="table-cell">
+                                                {user().name}
+                                            </div>
+                                            <div class="table-cell">
+                                                {user().email}
+                                            </div>
+                                            <div class="table-cell">
+                                                {user().role ?? "—"}
+                                            </div>
+                                            <div class="table-cell pr-4!">
+                                                {user().password}
+                                            </div>
+                                        </div>
+                                    )}
+                                </Index>
+                            </div>
+                        </div>
+                    </div>
+                </Show>
+            </div>
         </>
     );
 };

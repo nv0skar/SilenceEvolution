@@ -12,11 +12,11 @@ CREATE TABLE IF NOT EXISTS silence_users (
 
 CREATE TABLE IF NOT EXISTS silence_sessions (
     token_id VARCHAR(128) PRIMARY KEY,
-    user_id INT UNSIGNED NOT NULL REFERENCES silence_users (user_id),
+    user_id INT UNSIGNED NOT NULL REFERENCES silence_users (user_id) ON DELETE CASCADE,
     created_at DATETIME NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS silence_roles (
-    user_id INT UNSIGNED PRIMARY KEY REFERENCES silence_users (user_id),
+    user_id INT UNSIGNED PRIMARY KEY REFERENCES silence_users (user_id) ON DELETE CASCADE,
     role VARCHAR(16) NOT NULL
 );

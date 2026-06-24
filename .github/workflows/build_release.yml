@@ -62,7 +62,8 @@ jobs:
         if: |
             github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'release' &&
-             contains(fromJson('["nv0skar"]'), github.actor))
+             contains(fromJson('["nv0skar"]'), github.actor)) ||
+            (github.event_name == 'workflow_dispatch' && contains(inputs.build_targets, matrix.short_name))
 
         strategy:
             fail-fast: false
@@ -72,14 +73,19 @@ jobs:
                       target: x86_64-unknown-linux-gnu
                       artifact_name: silence
                       bin_name: silence
+                      short_name: linux
+
                     - os: macos-latest
                       target: aarch64-apple-darwin
                       artifact_name: silence
                       bin_name: silence
+                      short_name: macos
+
                     - os: windows-latest
                       target: x86_64-pc-windows-gnu
                       artifact_name: silence
                       bin_name: silence.exe
+                      short_name: windows
 
         steps:
             - name: Checkout code

@@ -1,24 +1,14 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { UserContext } from "./Admin";
+import { SessionContext } from "./Admin";
 
-import {
-    createContext,
-    createEffect,
-    createResource,
-    createSignal,
-    on,
-    Show,
-    useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+import { useContext } from "solid-js";
 
-import { A, type RouteSectionProps } from "@solidjs/router";
+import { type RouteSectionProps } from "@solidjs/router";
 
 export default (_: RouteSectionProps) => {
-    const user_context = useContext(UserContext);
+    const user_context = useContext(SessionContext);
 
     if (!user_context) throw new Error("Can't find user's context");
 

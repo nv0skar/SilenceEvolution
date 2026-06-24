@@ -7,14 +7,27 @@ use databases::*;
 use execute::{mysql::*, *};
 
 /// Proxies MySQL execute queries and injects internal params on runtime.
-#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, Display, Debug)]
-#[display("SQL query: {:?}", query)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Getters, Display, Debug)]
+#[display("SQL queries: {:?}", queries)]
 #[getset(get = "pub")]
 pub struct MySQLExecuteProxy {
-    query: CompactString,
+    queries: CheapVec<CompactString>,
 }
 
 boxed_any!(MySQLExecuteProxy);
+
+impl MySQLExecuteProxy {
+    pub fn new(query: CompactString) -> Self {
+        Self {
+            queries: CheapVec::from_vec(vec![query]),
+        }
+    }
+
+    /// This will enable Silence to execute multiple MySQL queries until Waveless' MySQL implements this.
+    pub fn new_many(queries: CheapVec<CompactString>) -> Self {
+        Self { queries }
+    }
+}
 
 #[typetag::serde(name = "MySQLProxy")]
 #[async_trait]
@@ -59,8 +72,17 @@ impl AnyExecute for MySQLExecuteProxy {
             ),
         );
 
-        let mysql_execute = Arc::new(MySQLExecute::new(self.query.to_owned()));
+        let mut last_res: Result<ExecuteOutput, RequestError> =
+            Err(RequestError::Other(anyhow!("No query was executed.")));
 
-        mysql_execute.execute(method, db_conn, input).await
+        for query in self.queries.to_owned() {
+            let mysql_execute = Arc::new(MySQLExecute::new(query.to_owned()));
+
+            last_res = mysql_execute
+                .execute(method, db_conn.to_owned(), input.to_owned())
+                .await;
+        }
+
+        last_res
     }
 }
