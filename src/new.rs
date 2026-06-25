@@ -65,6 +65,17 @@ pub async fn new_project(
     {
         debug!("Changing database's default encoding.");
 
+        db_conn
+            .execute(databases::DatabaseInput::Query(
+                "SET SESSION character_set_server = 'utf8mb4'".into(),
+            ))
+            .await?;
+        db_conn
+            .execute(databases::DatabaseInput::Query(
+                "SET SESSION collation_server = 'utf8mb4_unicode_ci'".into(),
+            ))
+            .await?;
+
         // Change the encoding for new tables.
         statements.insert_many(
             0,

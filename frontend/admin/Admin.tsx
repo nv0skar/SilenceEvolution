@@ -5,7 +5,12 @@ import { type ConfigStruct } from "./Config";
 
 import { createContext, createResource, Show, type Resource } from "solid-js";
 
-import { A, type RouteSectionProps } from "@solidjs/router";
+import {
+    A,
+    useLocation,
+    useNavigate,
+    type RouteSectionProps,
+} from "@solidjs/router";
 
 export const SessionContext = createContext<Resource<SessionStruct>>();
 
@@ -24,6 +29,10 @@ const Logout = async () => {
 };
 
 export default (props: RouteSectionProps) => {
+    const location = useLocation();
+
+    const navigate = useNavigate();
+
     // Load user data.
     const [user] = createResource(async (): Promise<SessionStruct> => {
         const res = await fetch("/api/internal/whoami");
@@ -34,7 +43,7 @@ export default (props: RouteSectionProps) => {
             const data = (await res.json())[0];
             return data as SessionStruct;
         } else {
-            document.location = "/auth?redirect=/admin";
+            document.location.replace("/auth?redirect=/admin");
             throw new Error("User is not logged in.");
         }
     });
@@ -51,6 +60,19 @@ export default (props: RouteSectionProps) => {
         } else {
             throw new Error("Couldn't load project's config.");
         }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape")
+            navigate(
+                location.pathname.includes("endpoints")
+                    ? "/endpoints"
+                    : "/users",
+                {
+                    replace: false,
+                    scroll: false,
+                },
+            );
     });
 
     return (

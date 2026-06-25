@@ -117,14 +117,6 @@ export default (props: RouteSectionProps) => {
         }),
     );
 
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape")
-            navigate("/endpoints", {
-                replace: false,
-                scroll: false,
-            });
-    });
-
     const render_field = (
         field: Accessor<[string, any]>,
         ix: number,
@@ -354,7 +346,7 @@ export default (props: RouteSectionProps) => {
                                     </div>
                                 </div>
                             </div>
-                            <div class="table-row-group [&>div]:even:bg-base-200 [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:shadow-xl [&>div]:hover:cursor-pointer">
+                            <div class="table-row-group [&>div]:even:bg-base-200 [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
                                 <Index
                                     each={endpoints()?.sort(
                                         (endpoint_pair_1, endpoint_pair_2) => {

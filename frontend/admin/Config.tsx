@@ -37,8 +37,6 @@ export default (props: RouteSectionProps) => {
 
     if (!session_context) throw new Error("Can't find user's context");
 
-    const navigate = useNavigate();
-
     const [error, set_error] = createSignal<string | undefined>(undefined);
 
     // Load config.
@@ -138,14 +136,6 @@ export default (props: RouteSectionProps) => {
         }),
     );
 
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape")
-            navigate("/endpoints", {
-                replace: false,
-                scroll: false,
-            });
-    });
-
     return (
         <>
             <div>
@@ -154,6 +144,12 @@ export default (props: RouteSectionProps) => {
                 </div>
                 <Show when={!config.loading}>
                     <div class="grid gap gap-2 py-8">
+                        <div class="bg-base-200 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer">
+                            <p class="font-semibold">
+                                Some changes may require a manual server
+                                restart.
+                            </p>
+                        </div>
                         <Show when={error() != undefined}>
                             <div
                                 class="bg-red-800 border-red-400 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer"

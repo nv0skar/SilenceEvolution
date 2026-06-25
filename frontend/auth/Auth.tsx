@@ -30,7 +30,7 @@ export default (props: RouteSectionProps) => {
 
     createEffect(
         on(session_exists, (session_exists) => {
-            if (session_exists) document.location = "/";
+            if (session_exists) document.location.replace("/");
         }),
     );
 

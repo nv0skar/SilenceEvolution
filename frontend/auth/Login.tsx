@@ -29,7 +29,7 @@ export default () => {
             }),
         });
 
-        if (res.status == 200) document.location = context.redirect;
+        if (res.status == 200) document.location.replace(context.redirect);
         else context.set_error((await res.json())["error"]);
     };
 
