@@ -5,6 +5,8 @@ use crate::*;
 
 use databases::*;
 
+use sea_orm::QueryResult;
+
 /// TODO: add docs here.
 #[derive(Clone, RustEmbed, Debug)]
 #[folder = "./migrations"]
@@ -25,7 +27,7 @@ pub async fn new_project(
         db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
         db_user,
         db_password,
-        db_name,
+        db_name.to_owned(),
     );
 
     // Execute database's migrations.
@@ -53,14 +55,50 @@ pub async fn new_project(
         .filter(|line| !line.starts_with("--"))
         .collect::<String>();
 
-    let mut statements = queries.split(";");
+    let mut statements = queries
+        .split(";")
+        .map(|query| query.to_compact_string())
+        .collect::<CheapVec<CompactString>>();
+
+    // FIX: sea-schema won't accept MariaDB's default database's encoding on Windows...
+    // #[cfg(target_os = "windows")] - we will force it on all platforms.
+    {
+        debug!("Changing database's default encoding.");
+
+        // Change the encoding for new tables.
+        statements.insert_many(
+            0,
+            [format!(
+                "ALTER DATABASE {} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+                db_name
+            )
+            .into()],
+        );
+
+        // Convert current tables.
+        let DatabaseOutput::Any(execute) = db_conn
+            .execute(databases::DatabaseInput::Query(format!("SELECT CONCAT('ALTER TABLE `', TABLE_SCHEMA, '`.`', TABLE_NAME, '` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;') AS execute FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE';", db_name).into()))
+            .await? else {
+                bail!("Couldn't change the encoding of existing database's tables.");
+            };
+
+        let res = execute
+            .downcast::<Vec<QueryResult>>()
+            .map_err(|err| anyhow!("Cannot downcast to MySQL query result. {:?}", err))?;
+
+        for entry in *res {
+            if let Ok(query) = entry.try_get::<String>("", "execute") {
+                db_conn.execute(DatabaseInput::Query(query.into())).await?;
+            }
+        }
+    }
+
+    let mut statements = statements.into_iter();
 
     while let Some(statement) = statements.next() {
         if !statement.is_empty() {
             db_conn
-                .execute(databases::DatabaseInput::Query(
-                    statement.to_compact_string(),
-                ))
+                .execute(databases::DatabaseInput::Query(statement.into()))
                 .await?;
         }
     }

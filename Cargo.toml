@@ -1,6 +1,6 @@
 [package]
 name = "silence"
-description = "An educational framework for deploying APIs based on a MySQL schema and web applications (Waveless' wrapper)."
+description = "An educational framework for deploying APIs (based on a MySQL schema) and web applications."
 version = "0.0.0"
 edition = "2024"
 
