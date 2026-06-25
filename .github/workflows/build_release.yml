@@ -134,36 +134,26 @@ jobs:
               with:
                   path: artifacts/
 
-            # Ensure all binaries are present.
-            - name: Verify all binaries are present
+            # Packages each binary into an archive
+            - name: Package binaries into distinct archives
               run: |
-                  set -e
-                  missing=0
-                  for target in \
-                      "silence_x86_64-unknown-linux-gnu/silence" \
-                      "silence_aarch64-apple-darwin/silence" \
-                      "silence_x86_64-pc-windows-gnu/silence.exe"
-                  do
-                      if [ ! -f "artifacts/$target" ]; then
-                          echo "❌ Missing artifact: $target"
-                          missing=1
-                      else
-                          echo "✅ Found artifact: $target"
-                      fi
-                  done
-                  if [ $missing -ne 0 ]; then
-                      echo "❌ One or more binaries are missing – aborting release upload."
-                      exit 1
-                  fi
+                  LINUX_DIR=$(find artifacts -maxdepth 1 -type d -name "*linux*")
+                  tar -czf artifacts/silence-linux-x86_64.tar.gz -C "$LINUX_DIR" silence
+
+                  MACOS_DIR=$(find artifacts -maxdepth 1 -type d -name "*apple-darwin*")
+                  tar -czf artifacts/silence-macos-aarch64.tar.gz -C "$MACOS_DIR" silence
+
+                  WINDOWS_FILE=$(find artifacts -type f -name "silence.exe")
+                  zip -j artifacts/silence-windows-x86_64.zip "$WINDOWS_FILE"
 
             - name: Upload binaries to release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.event.release.tag_name }}
                   files: |
-                      artifacts/silence_x86_64-unknown-linux-gnu/silence
-                      artifacts/silence_aarch64-apple-darwin/silence
-                      artifacts/silence_x86_64-pc-windows-gnu/silence.exe
+                      artifacts/silence-linux-x86_64.tar.gz
+                      artifacts/silence-macos-aarch64.tar.gz
+                      artifacts/silence-windows-x86_64.zip
 
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

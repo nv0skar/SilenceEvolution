@@ -88,10 +88,23 @@ pub async fn new_project(
 
         // Convert current tables.
         let DatabaseOutput::Any(execute) = db_conn
-            .execute(databases::DatabaseInput::Query(format!("SELECT CONCAT('ALTER TABLE `', TABLE_SCHEMA, '`.`', TABLE_NAME, '` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;') AS execute FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE';", db_name).into()))
-            .await? else {
-                bail!("Couldn't change the encoding of existing database's tables.");
-            };
+            .execute(databases::DatabaseInput::Query(
+                format!(
+                    "SELECT CONCAT(
+                        'ALTER TABLE `', TABLE_SCHEMA, '`.`', TABLE_NAME, '` ',
+                        'CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, ',
+                        'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+                     ) AS execute
+                     FROM information_schema.TABLES
+                     WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE'",
+                    db_name
+                )
+                .into(),
+            ))
+            .await?
+        else {
+            bail!("Couldn't change the encoding of existing database's tables.");
+        };
 
         let res = execute
             .downcast::<Vec<QueryResult>>()
