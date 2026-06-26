@@ -276,7 +276,16 @@ async fn try_main() -> Result<ResultContext> {
                     }
                     .print();
 
-                    run_migrations().await?;
+                    run_migrations(
+                        AppCx::acquire()
+                            .config()
+                            .read()
+                            .await
+                            .database_conn()
+                            .db()
+                            .to_owned(),
+                    )
+                    .await?;
 
                     serve(
                         match runtime_executor.listening_addr() {
@@ -318,7 +327,7 @@ async fn try_main() -> Result<ResultContext> {
             ]))
             .await?;
 
-            run_migrations().await?;
+            run_migrations(app_cx.config().read().await.database_conn().db().to_owned()).await?;
 
             Ok("Migrations ran successfully.".into())
         }

@@ -134,7 +134,6 @@ jobs:
               with:
                   path: artifacts/
 
-            # Packages each binary into an archive
             - name: Package binaries into distinct archives
               run: |
                   mkdir assets

@@ -16,7 +16,7 @@ use sea_orm::QueryResult;
 pub struct NewMigrations;
 
 // Runs database's migrations.
-pub async fn run_migrations() -> Result<()> {
+pub async fn run_migrations(_db_name: CompactString) -> Result<()> {
     let db_conn = DATABASES_CONNS
         .get()
         .unwrap()
@@ -71,7 +71,7 @@ pub async fn run_migrations() -> Result<()> {
             0,
             [format!(
                 "ALTER DATABASE {} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
-                db_name
+                _db_name
             )
             .into()],
         );
@@ -89,7 +89,7 @@ pub async fn run_migrations() -> Result<()> {
                      ) AS execute
                      FROM information_schema.TABLES
                      WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE'",
-                    db_name
+                    _db_name
                 )
                 .into(),
             ))
@@ -144,7 +144,7 @@ pub async fn new_project(
 
         DatabasesConnections::load(CheapVec::from_vec(vec![config.into_database_config()])).await?;
 
-        run_migrations().await?;
+        run_migrations(db_name).await?;
     } else {
         *config.database_conn_mut() = databases::mysql::MySQLDBConnectionConfig::new(
             db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
