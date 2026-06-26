@@ -5,6 +5,9 @@ use crate::*;
 
 use databases::*;
 
+use owo_colors::*;
+
+#[allow(warnings)]
 use sea_orm::QueryResult;
 
 /// TODO: add docs here.
@@ -12,27 +15,8 @@ use sea_orm::QueryResult;
 #[folder = "./migrations"]
 pub struct NewMigrations;
 
-/// Create a new project in the current dir with the specified settings
-pub async fn new_project(
-    name: CompactString,
-    db_host: Option<SocketAddr>,
-    db_name: CompactString,
-    db_user: CompactString,
-    db_password: CompactString,
-) -> Result<CompactString> {
-    // Create a new Silence project.
-    let mut config = config::Config::default();
-
-    *config.database_conn_mut() = databases::mysql::MySQLDBConnectionConfig::new(
-        db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
-        db_user,
-        db_password,
-        db_name.to_owned(),
-    );
-
-    // Execute database's migrations.
-    DatabasesConnections::load(CheapVec::from_vec(vec![config.into_database_config()])).await?;
-
+// Runs database's migrations.
+pub async fn run_migrations() -> Result<()> {
     let db_conn = DATABASES_CONNS
         .get()
         .unwrap()
@@ -55,16 +39,22 @@ pub async fn new_project(
         .filter(|line| !line.starts_with("--"))
         .collect::<String>();
 
+    #[allow(warnings)]
     let mut statements = queries
         .split(";")
         .map(|query| query.to_compact_string())
         .collect::<CheapVec<CompactString>>();
 
     // FIX: sea-schema won't accept MariaDB's default database's encoding on Windows...
-    // #[cfg(target_os = "windows")] - we will force it on all platforms.
+    #[cfg(target_os = "windows")]
     {
         debug!("Changing database's default encoding.");
 
+        db_conn
+            .execute(databases::DatabaseInput::Query(
+                "SET FOREIGN_KEY_CHECKS=0".into(),
+            ))
+            .await?;
         db_conn
             .execute(databases::DatabaseInput::Query(
                 "SET SESSION character_set_server = 'utf8mb4'".into(),
@@ -85,6 +75,8 @@ pub async fn new_project(
             )
             .into()],
         );
+
+        statements.push("SET FOREIGN_KEY_CHECKS=1".into());
 
         // Convert current tables.
         let DatabaseOutput::Any(execute) = db_conn
@@ -125,6 +117,43 @@ pub async fn new_project(
                 .execute(databases::DatabaseInput::Query(statement.into()))
                 .await?;
         }
+    }
+
+    Ok(())
+}
+
+/// Create a new project in the current dir with the specified settings.
+pub async fn new_project(
+    name: CompactString,
+    db_host: Option<SocketAddr>,
+    db_name: Option<CompactString>,
+    db_user: Option<CompactString>,
+    db_password: Option<CompactString>,
+) -> Result<CompactString> {
+    // Create a new Silence project.
+    let mut config = config::Config::default();
+
+    // Execute database's migrations if database data is given.
+    if let (Some(db_name), Some(db_user), Some(db_password)) = (db_name, db_user, db_password) {
+        *config.database_conn_mut() = databases::mysql::MySQLDBConnectionConfig::new(
+            db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+            db_user,
+            db_password,
+            db_name.to_owned(),
+        );
+
+        DatabasesConnections::load(CheapVec::from_vec(vec![config.into_database_config()])).await?;
+
+        run_migrations().await?;
+    } else {
+        *config.database_conn_mut() = databases::mysql::MySQLDBConnectionConfig::new(
+            db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+            "db_user".into(),
+            "db_password".into(),
+            "db_password".into(),
+        );
+
+        println!("{}\n{}", "Database connection config were not passed as arguments, using default values instead.".bright_yellow(), " Migrations were not run, modify database connection config in `config.json` and run migrations.".bright_red().blink());
     }
 
     // Create the project's folder.

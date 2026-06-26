@@ -34,8 +34,9 @@ const REDUCED_FIELDS: Array<keyof EndpointStruct> = [
     "version",
     "route",
     "method",
-    "query",
     "body_params",
+    "allowed_roles",
+    "require_auth",
 ];
 
 export default (props: RouteSectionProps) => {
@@ -80,7 +81,7 @@ export default (props: RouteSectionProps) => {
                                 route: endpoint.route,
                                 description: endpoint.description,
                                 version: endpoint.version,
-                                method: endpoint.method,
+                                method: endpoint.method.toUpperCase(),
                                 query_params: endpoint.query_params,
                                 body_params: endpoint.body_params,
                                 query: endpoint.query,
@@ -299,23 +300,16 @@ export default (props: RouteSectionProps) => {
                                     <div
                                         class="table-cell"
                                         classList={{
-                                            "rounded-tr-xl!": !get_full_data(),
+                                            "hidden!": !get_full_data(),
                                         }}
                                     >
                                         Query
                                     </div>
+                                    <div class="table-cell">Requires auth</div>
                                     <div
                                         class="table-cell"
                                         classList={{
-                                            "hidden!": !get_full_data(),
-                                        }}
-                                    >
-                                        Requires auth
-                                    </div>
-                                    <div
-                                        class="table-cell"
-                                        classList={{
-                                            "hidden!": !get_full_data(),
+                                            "rounded-tr-xl!": !get_full_data(),
                                         }}
                                     >
                                         Allowed roles
@@ -360,11 +354,11 @@ export default (props: RouteSectionProps) => {
                                         <Show
                                             when={
                                                 get_full_data() ||
-                                                endpoint().endpoint.query! !==
-                                                    null ||
-                                                !endpoint().endpoint.version?.includes(
-                                                    "internal",
-                                                )
+                                                (endpoint().endpoint.query! !==
+                                                    null &&
+                                                    !endpoint().endpoint.version?.includes(
+                                                        "internal",
+                                                    ))
                                             }
                                         >
                                             <div

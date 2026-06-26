@@ -41,6 +41,19 @@ export default (props: RouteSectionProps) => {
 
         if (res.status === 200) {
             const data = (await res.json())[0];
+
+            if ((data as SessionStruct).role !== "admin") {
+                const res = await fetch("/api/internal/bootstrap");
+
+                const maybe_new_role = (await res.json())[0] as {
+                    role: string | null;
+                };
+
+                console.log(maybe_new_role);
+
+                data.role = maybe_new_role.role;
+            }
+
             return data as SessionStruct;
         } else {
             document.location.replace("/auth?redirect=/admin");

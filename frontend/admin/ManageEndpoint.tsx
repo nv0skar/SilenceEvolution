@@ -3,13 +3,21 @@
 
 import { EndpointsContext } from "./Endpoints";
 
-import { createSignal, Show, useContext } from "solid-js";
+import {
+    createEffect,
+    createResource,
+    createSignal,
+    Show,
+    useContext,
+} from "solid-js";
 
 import {
     useNavigate,
     useParams,
     type RouteSectionProps,
 } from "@solidjs/router";
+
+import { loadGrammar } from "@arborium/arborium";
 
 export interface EndpointStruct {
     id: string;
@@ -150,6 +158,22 @@ export default (_: RouteSectionProps) => {
         }
     };
 
+    // Load SQL grammar.
+    const [sql_grammar] = createResource(async () => {
+        return (await loadGrammar("sql"))!;
+    });
+
+    const [formatted_sql, set_formatted_sql] = createSignal<string>("—");
+
+    const format_sql = async (value: string) => {
+        set_formatted_sql(await sql_grammar()?.highlight(value)!);
+    };
+
+    createEffect(async () => {
+        if (endpoint_data !== undefined)
+            format_sql(endpoint_data.endpoint.query ?? "");
+    });
+
     return (
         <>
             <div class="grid gap-2 py-8">
@@ -276,17 +300,33 @@ export default (_: RouteSectionProps) => {
 
                         <label class="my-1">
                             <span class="label text-xs">Query</span>
-                            <textarea
-                                name="query"
-                                class="input whitespace-normal w-full h-14"
-                                value={
-                                    endpoint_data
-                                        ? (endpoint_data.endpoint.query ?? "")
-                                        : ""
-                                }
-                                placeholder="Query"
-                                required={endpoint_data === undefined}
-                            />
+                            <div class="overflow-auto overscroll-contain">
+                                <div class="grid grid-cols-1 box-border min-w-0 font-mono **:text-sm **:leading-6 overflow-hidden">
+                                    <div
+                                        class="bg-base-100 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0 pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
+                                        innerHTML={formatted_sql()}
+                                    ></div>
+                                    <textarea
+                                        id="query"
+                                        name="query"
+                                        class="bg-transparent p-3 border text-transparent col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
+                                        spellcheck="false"
+                                        value={
+                                            endpoint_data
+                                                ? (endpoint_data.endpoint
+                                                      .query ?? "")
+                                                : ""
+                                        }
+                                        placeholder="Query"
+                                        onInput={async (event) => {
+                                            format_sql(
+                                                event.currentTarget.value,
+                                            );
+                                        }}
+                                        required={endpoint_data === undefined}
+                                    />
+                                </div>
+                            </div>
                         </label>
 
                         <details class="collapse bg-base-100 border border-base-300 rounded-2xl mt-3 my-1">

@@ -29,6 +29,20 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .build()
             .unwrap(),
         EndpointBuilder::default()
+            .id("Bootstrap".into())
+            .route("/bootstrap".into())
+            .version("internal".into())
+            .method(HttpMethod::Get)
+            .execute(Arc::new(MySQLExecuteProxy::new_many(
+                 CheapVec::from_vec(vec!["INSERT INTO |roles_target_table| (|user_id_row|, role) SELECT users.|user_id_row|, 'admin' FROM |users_target_table| as users WHERE (SELECT COUNT(*) FROM |users_target_table|) = 1;".into(), "SELECT roles.role FROM |roles_target_table| as roles WHERE (roles.|user_id_row| = |user_id|)".into()]
+            ))))
+            .description("If there is only a single user, give it the admin role.".into())
+            .require_auth(true)
+            .inject_user_id(true)
+            .auto_generated(true)
+            .build()
+            .unwrap(),
+        EndpointBuilder::default()
             .id("ListUsers".into())
             .route("/users".into())
             .version("internal/admin".into())
@@ -111,7 +125,6 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 "DELETE FROM |roles_target_table| WHERE (|user_id_row| = {user_id});".into(),
             )))
             .description("Deletes the role of a given user id.".into())
-            .body_params(CheapVec::from_vec(vec!["role".into()]))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
             .auto_generated(true)
