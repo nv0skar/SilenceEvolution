@@ -276,6 +276,8 @@ async fn try_main() -> Result<ResultContext> {
                     }
                     .print();
 
+                    run_migrations().await?;
+
                     serve(
                         match runtime_executor.listening_addr() {
                             Some(addr) => Some(addr.to_owned()),

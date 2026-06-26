@@ -137,26 +137,20 @@ jobs:
             # Packages each binary into an archive
             - name: Package binaries into distinct archives
               run: |
-                  LINUX_DIR=$(find artifacts -maxdepth 1 -type d -name "*linux*")
-                  mv "$LINUX_DIR/silence" "$LINUX_DIR/silence-linux-x86_64"
-                  tar -czf artifacts/silence-linux-x86_64.tar.gz -C "$LINUX_DIR" silence-linux-x86_64
+                  mkdir assets
 
-                  MACOS_DIR=$(find artifacts -maxdepth 1 -type d -name "*apple-darwin*")
-                  mv "$MACOS_DIR/silence" "$MACOS_DIR/silence-macos-aarch64"
-                  tar -czf artifacts/silence-macos-aarch64.tar.gz -C "$MACOS_DIR" silence-macos-aarch64
-
-                  WINDOWS_FILE=$(find artifacts -type f -name "silence.exe")
-                  mv "$WINDOWS_DIR/silence.exe" "$WINDOWS_DIR/silence-windows-x86_64.exe"
-                  zip -j artifacts/silence-windows-x86_64.zip "$WINDOWS_FILE/silence-windows-x86_64.exe"
+                  find artifacts -type f -path "*_x86_64-unknown-linux-gnu/silence" -exec cp {} assets/silence-linux-x86_64 \;
+                  find artifacts -type f -path "*_aarch64-apple-darwin/silence" -exec cp {} assets/silence-macos-aarch64 \;
+                  find artifacts -type f -path "*_x86_64-pc-windows-gnu/silence.exe" -exec cp {} assets/silence-windows-x86_64.exe \;
 
             - name: Upload binaries to release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.event.release.tag_name }}
                   files: |
-                      artifacts/silence-linux-x86_64.tar.gz
-                      artifacts/silence-macos-aarch64.tar.gz
-                      artifacts/silence-windows-x86_64.zip
+                      assets/silence-linux-x86_64
+                      assets/silence-macos-aarch64
+                      assets/silence-windows-x86_64.exe
 
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
