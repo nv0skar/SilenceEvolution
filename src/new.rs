@@ -5,8 +5,6 @@ use crate::*;
 
 use databases::*;
 
-use owo_colors::*;
-
 #[allow(warnings)]
 use sea_orm::QueryResult;
 
@@ -152,8 +150,6 @@ pub async fn new_project(
             "db_password".into(),
             "db_password".into(),
         );
-
-        println!("{}\n{}", "Database connection config were not passed as arguments, using default values instead.".bright_yellow(), " Migrations were not run, modify database connection config in `config.json` and run migrations.".bright_red().blink());
     }
 
     // Create the project's folder.
