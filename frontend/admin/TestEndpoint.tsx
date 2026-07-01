@@ -283,7 +283,7 @@ export default (_: RouteSectionProps) => {
                         </fieldset>
 
                         <details
-                            class="collapse bg-base-100 border border-base-300 rounded-2xl mt-3 my-1"
+                            class="collapse bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
                             classList={{
                                 hidden:
                                     endpoint_schema.state!.route_params
@@ -328,7 +328,7 @@ export default (_: RouteSectionProps) => {
                         </details>
 
                         <details
-                            class="collapse bg-base-100 border border-base-300 rounded-2xl mt-3 my-1"
+                            class="collapse bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
                             open
                         >
                             <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-200">
@@ -417,7 +417,7 @@ export default (_: RouteSectionProps) => {
                             <div class="overflow-auto overscroll-contain">
                                 <div class="grid grid-cols-1 box-border min-w-0 font-mono **:text-sm **:leading-6 overflow-hidden">
                                     <div
-                                        class="bg-base-100 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0 pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
+                                        class="bg-base-100/25 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0 pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
                                         ref={req_body_highlighted_element}
                                     ></div>
                                     <textarea
@@ -485,7 +485,7 @@ export default (_: RouteSectionProps) => {
                         </button>
                     </div>
                     <Show when={response() !== undefined}>
-                        <div class="bg-base-100 border border-base-300 backdrop-blur shadow-xl rounded-box my-2 p-2">
+                        <div class="bg-base-100/25 border border-base-300 backdrop-blur shadow-xl rounded-box my-2 p-2">
                             <span class="text-xs">
                                 Response at {response()!.time}
                             </span>

@@ -90,11 +90,11 @@ export default (props: RouteSectionProps) => {
 
     return (
         <>
-            <div class="drawer lg:drawer-open [&_input]:rounded-2xl [&_textarea]:rounded-2xl">
+            <div class="drawer lg:drawer-open [&_input]:rounded-2xl [&_input]:bg-base-100/25 [&_textarea]:rounded-2xl">
                 <input id="app-drawer" type="checkbox" class="drawer-toggle" />
                 <div class="drawer-content flex flex-col">
                     <nav>
-                        <div class="navbar bg-base-100/50 backdrop-blur-xl shadow fixed left-0 z-10">
+                        <div class="navbar bg-base-100/20 backdrop-blur-sm shadow fixed left-0 z-10">
                             <div class="navbar-start flex gap-2">
                                 <label
                                     for="app-drawer"
@@ -106,7 +106,7 @@ export default (props: RouteSectionProps) => {
                                     </span>
                                 </label>
                                 <Show when={config() !== undefined}>
-                                    <span class="text-[0.6rem] max-h-16 not-lg:max-w-28 lg:text-xs text-emerald-700 dark:text-emerald-500 font-semibold animate-pulse bg-base-300/90 backdrop-blur-xs rounded-2xl border border-base-200 px-3 py-1 lg:ml-24 overflow-y-scroll scrollbar-none">
+                                    <span class="text-[0.5rem] max-h-16 not-lg:max-w-28 lg:text-xs text-emerald-700 dark:text-emerald-500 font-semibold animate-pulse bg-base-300/90 backdrop-blur-xs rounded-2xl border border-base-200 px-3 py-1 lg:ml-24 overflow-y-scroll scrollbar-none">
                                         Running on database{" "}
                                         <span class="font-black">
                                             {config()?.database_conn.db}
@@ -147,7 +147,7 @@ export default (props: RouteSectionProps) => {
                                     <ul
                                         id="user-dropdown"
                                         class="dropdown menu w-52 rounded-box bg-base-100/25 border-base-200 border backdrop-blur-sm shadow-lg transition duration-200"
-                                        style="position-anchor:--user-anchor"
+                                        style="position-anchor:--user-anchor; inset: auto; top: anchor(bottom); right: anchor(right); margin: 0;"
                                         popover
                                     >
                                         <li>
@@ -165,7 +165,7 @@ export default (props: RouteSectionProps) => {
                             </div>
                         </div>
                     </nav>
-                    <div class="absolute top-0 left-0 p-8 px-8 lg:pl-26 pt-24 w-screen h-screen z-0">
+                    <div class="absolute top-0 left-0 p-8 px-3 lg:pl-26 lg:pr-8 pt-24 w-screen h-screen z-0">
                         <Show when={user() !== undefined}>
                             <Show
                                 when={user()!.role === "admin"}
@@ -214,8 +214,8 @@ export default (props: RouteSectionProps) => {
                         aria-label="close sidebar"
                         class="drawer-overlay"
                     ></label>
-                    <div class="flex h-full flex-col items-start fixed is-drawer-close:w-16 is-drawer-open:w-40">
-                        <ul class="menu h-full bg-base-200 border-base-300 backdrop-blur shadow-xl rounded-2xl border m-2 p-2 gap-2 [&_li]:transition [&_li]:duration-200 [&_li]:hover:scale-105">
+                    <div class="flex h-full flex-col items-start fixed is-drawer-close:w-16 is-drawer-open:w-40 transition duration-300 ease-in-out will-change-[width]">
+                        <ul class="menu h-full bg-base-200/10 lg:bg-base-200/25 border-[0.5px] border-base-200 backdrop-blur-sm shadow-xl rounded-2xl m-2 p-2 gap-2 [&_li]:transition [&_li]:duration-200 [&_li]:hover:scale-105">
                             <li>
                                 <A href="/config">
                                     <span class="material-symbols-outlined scale-95">

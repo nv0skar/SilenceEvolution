@@ -77,7 +77,7 @@ export default (props: RouteSectionProps) => {
                 </div>
                 <Show when={!users.loading}>
                     <div
-                        class="fixed top-0 left-0 w-screen h-screen p-4 z-20 bg-base-100/5 backdrop-blur-md transition duration-300"
+                        class="fixed top-0 left-0 w-screen h-screen p-4 z-20 backdrop-blur-md backdrop-brightness-90 transition duration-300"
                         classList={{
                             "opacity-0 pointer-events-none":
                                 resolved_children() === undefined,
@@ -94,7 +94,7 @@ export default (props: RouteSectionProps) => {
                         >
                             <div
                                 id="modal"
-                                class="relative lg:m-32 w-full h-fit px-4 bg-base-200/10 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-300"
+                                class="relative lg:m-32 w-full h-fit px-4 bg-base-100/50 backdrop-blur-xs border border-base-300 rounded-2xl  shadow-lg transition duration-300"
                                 classList={{
                                     "opacity-0 scale-75":
                                         resolved_children() === undefined,
@@ -104,7 +104,7 @@ export default (props: RouteSectionProps) => {
                                 }}
                             >
                                 <A
-                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 border-base-200 backdrop-blur-xs shadow-2xs scale-90 z-50"
+                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200 z-50"
                                     href="/users"
                                     noScroll
                                     replace={false}
@@ -153,7 +153,7 @@ export default (props: RouteSectionProps) => {
                                 >
                                     {(user, _) => (
                                         <div
-                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
+                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:lg:p-1.5 [&_div]:align-middle"
                                             onClick={() =>
                                                 navigate(
                                                     `/users/${user().user_id}`,

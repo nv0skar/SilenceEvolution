@@ -211,8 +211,8 @@ export default (props: RouteSectionProps) => {
                                 </label>
                             </fieldset>
 
-                            <details class="collapse bg-base-100 border border-base-300 rounded-2xl mt-3 my-1">
-                                <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-200">
+                            <details class="collapse bg-base-200 border border-base-300 rounded-2xl mt-3 my-1">
+                                <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
                                     Internal parameters
                                 </summary>
                                 <div class="collapse-content">
@@ -296,8 +296,8 @@ export default (props: RouteSectionProps) => {
                                 </div>
                             </details>
 
-                            <details class="collapse bg-base-100 border border-base-300 rounded-2xl mt-3 my-1">
-                                <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-200">
+                            <details class="collapse bg-base-200 border border-base-300 rounded-2xl mt-3 my-1">
+                                <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
                                     Database
                                 </summary>
                                 <div class="collapse-content">

@@ -45,7 +45,7 @@ export default (props: RouteSectionProps) => {
     return (
         <>
             <nav>
-                <div class="navbar bg-base-100/50 backdrop-blur-xl shadow fixed">
+                <div class="navbar bg-base-100/20 backdrop-blur-sm shadow fixed">
                     <div class="navbar-start"></div>
                     <div class="navbar-center">
                         <A
