@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 import { SessionContext } from "./Admin";
-import { type EndpointStruct } from "./ManageEndpoint";
+import { type EndpointStruct } from "./Endpoint";
 
 import {
     children,
@@ -17,7 +17,13 @@ import {
     type Accessor,
 } from "solid-js";
 
-import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
+import {
+    A,
+    useLocation,
+    useNavigate,
+    useParams,
+    type RouteSectionProps,
+} from "@solidjs/router";
 
 import { loadGrammar } from "@arborium/arborium";
 
@@ -44,7 +50,11 @@ export default (props: RouteSectionProps) => {
 
     if (!session_context) throw new Error("Can't find user's context");
 
+    const location = useLocation();
+
     const navigate = useNavigate();
+
+    const params = useParams();
 
     // Full data.
     const [get_full_data, set_full_data] = createSignal<boolean>(false);
@@ -233,7 +243,7 @@ export default (props: RouteSectionProps) => {
                         >
                             <div
                                 id="modal"
-                                class="relative lg:m-32 w-full h-fit px-4 bg-base-200 border-base-300 rounded-2xl border shadow-lg transition duration-300"
+                                class="relative lg:m-32 w-full h-fit px-4 bg-base-200/10 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-300"
                                 classList={{
                                     "opacity-0 scale-75":
                                         resolved_children() === undefined,
@@ -242,16 +252,46 @@ export default (props: RouteSectionProps) => {
                                     event.stopPropagation();
                                 }}
                             >
-                                <A
-                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 backdrop-blur-2xs shadow-2xs scale-90 z-10"
-                                    href="/endpoints"
-                                    noScroll
-                                    replace={false}
-                                >
-                                    <span class="material-symbols-outlined">
-                                        close
-                                    </span>
-                                </A>
+                                <div class="absolute top-0 right-0 m-2 z-50">
+                                    <button
+                                        class="btn btn-circle bg-base-300/50 border-base-200 backdrop-blur-xs shadow-2xs scale-90"
+                                        classList={{
+                                            hidden: params["id"] === undefined,
+                                        }}
+                                        onClick={() => {
+                                            navigate(
+                                                location.pathname.includes(
+                                                    "modify",
+                                                )
+                                                    ? `/endpoints/${params["id"]!}/test`
+                                                    : `/endpoints/${params["id"]!}/modify`,
+                                                {
+                                                    replace: false,
+                                                    scroll: false,
+                                                },
+                                            );
+                                        }}
+                                    >
+                                        <span class="material-symbols-outlined">
+                                            {location.pathname.includes(
+                                                "modify",
+                                            )
+                                                ? "science"
+                                                : "data_object"}
+                                        </span>
+                                    </button>
+                                    <A
+                                        class="btn btn-circle bg-base-300/50 border-base-200 backdrop-blur-xs shadow-2xs scale-90"
+                                        href="/endpoints"
+                                        noScroll
+                                        replace={false}
+                                    >
+                                        <span class="material-symbols-outlined">
+                                            close
+                                        </span>
+                                    </A>
+                                </div>
+
                                 <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none">
                                     <Show
                                         when={resolved_children() !== undefined}
@@ -363,17 +403,18 @@ export default (props: RouteSectionProps) => {
                                         >
                                             <div
                                                 class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-0.5 [&_div]:lg:p-1 [&_div]:align-middle"
-                                                onClick={() =>
-                                                    navigate(
-                                                        `/endpoints/${endpoint().endpoint.id}`,
-                                                        {
-                                                            replace: false,
-                                                            scroll: false,
-                                                        },
-                                                    )
-                                                }
+                                                // @ts-ignore
+                                                popovertarget={`endpoint-row-${ix}-dropdown`}
+                                                style={`anchor-name:--endpoint-row-${ix}`}
+                                                onClick={(event) => {
+                                                    const dropdown = event
+                                                        .currentTarget
+                                                        .nextElementSibling as HTMLUListElement;
+
+                                                    dropdown.togglePopover();
+                                                }}
                                             >
-                                                <div class="table-cell font-light pl-8!">
+                                                <div class="table-cell font-light pl-8! align-middle">
                                                     {ix}
                                                 </div>
                                                 <Index
@@ -417,6 +458,67 @@ export default (props: RouteSectionProps) => {
                                                     {endpoint().path ?? "—"}
                                                 </div>
                                             </div>
+                                            <ul
+                                                id={`endpoint-row-${ix}-dropdown`}
+                                                class="dropdown dropdown-start menu w-52 rounded-box bg-base-100/25 border-base-200 border backdrop-blur-sm shadow-lg transition duration-200"
+                                                classList={{
+                                                    hidden:
+                                                        resolved_children() !==
+                                                        undefined,
+                                                }}
+                                                style={`position-anchor:--endpoint-row-${ix}`}
+                                                onClick={(event) =>
+                                                    (
+                                                        event.currentTarget as HTMLUListElement
+                                                    ).togglePopover()
+                                                }
+                                                onMouseLeave={(event) =>
+                                                    (
+                                                        event.currentTarget as HTMLUListElement
+                                                    ).togglePopover()
+                                                }
+                                                popover
+                                            >
+                                                <li>
+                                                    <button
+                                                        onClick={(_) => {
+                                                            navigate(
+                                                                `/endpoints/${endpoint().endpoint.id}/modify`,
+                                                                {
+                                                                    replace: false,
+                                                                    scroll: false,
+                                                                },
+                                                            );
+                                                        }}
+                                                    >
+                                                        <span class="material-symbols-outlined scale-90">
+                                                            data_object
+                                                        </span>
+                                                        <span class="font-bold">
+                                                            Modify
+                                                        </span>
+                                                    </button>
+
+                                                    <button
+                                                        onClick={(_) => {
+                                                            navigate(
+                                                                `/endpoints/${endpoint().endpoint.id}/test`,
+                                                                {
+                                                                    replace: false,
+                                                                    scroll: false,
+                                                                },
+                                                            );
+                                                        }}
+                                                    >
+                                                        <span class="material-symbols-outlined scale-90">
+                                                            science
+                                                        </span>
+                                                        <span class="font-bold">
+                                                            Test
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            </ul>
                                         </Show>
                                     )}
                                 </Index>

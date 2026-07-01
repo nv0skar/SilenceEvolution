@@ -145,10 +145,10 @@ export default (props: RouteSectionProps) => {
                                         </div>
                                     </button>
                                     <ul
-                                        class="dropdown menu w-52 rounded-box bg-base-100/50 border-base-200 border backdrop-blur-2xl shadow-lg"
-                                        popover
                                         id="user-dropdown"
+                                        class="dropdown menu w-52 rounded-box bg-base-100/25 border-base-200 border backdrop-blur-sm shadow-lg transition duration-200"
                                         style="position-anchor:--user-anchor"
+                                        popover
                                     >
                                         <li>
                                             <button onClick={Logout}>

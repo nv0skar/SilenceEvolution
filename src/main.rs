@@ -81,6 +81,9 @@ nest! {
 
                     #[arg(short = 'p', long = "db_password", help = "Database's password.")]
                     db_password: Option<CompactString>,
+
+                    #[arg(long = "prefer_web_directory", help = "Database's password.", default_value_t = true)]
+                    prefer_web_directory: bool,
                 },
 
                 #[command(about = "Runs Silence's migrations.")]
@@ -312,7 +315,18 @@ async fn try_main() -> Result<ResultContext> {
             db_name,
             db_user,
             db_password,
-        }) => new_project(name, db_host, db_name, db_user, db_password).await,
+            prefer_web_directory,
+        }) => {
+            new_project(
+                name,
+                db_host,
+                db_name,
+                db_user,
+                db_password,
+                prefer_web_directory,
+            )
+            .await
+        }
 
         Some(Subcommands::Migrations) => {
             // Loads Silence's app's context.

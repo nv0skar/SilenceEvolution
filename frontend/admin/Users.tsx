@@ -104,7 +104,7 @@ export default (props: RouteSectionProps) => {
                                 }}
                             >
                                 <A
-                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 backdrop-blur-2xs shadow-2xs scale-90 z-10"
+                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 backdrop-blur-2xs shadow-2xs scale-90 z-50"
                                     href="/users"
                                     noScroll
                                     replace={false}

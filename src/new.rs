@@ -127,6 +127,7 @@ pub async fn new_project(
     db_name: Option<CompactString>,
     db_user: Option<CompactString>,
     db_password: Option<CompactString>,
+    prefer_web_directory: bool,
 ) -> Result<CompactString> {
     // Create a new Silence project.
     let mut config = config::Config::default();
@@ -179,7 +180,12 @@ pub async fn new_project(
     {
         create_dir(project_path.join("endpoints")).await?;
 
-        create_dir(project_path.join("static")).await?;
+        create_dir(project_path.join(if prefer_web_directory {
+            "web"
+        } else {
+            "static"
+        }))
+        .await?;
     }
 
     return Ok(format!(

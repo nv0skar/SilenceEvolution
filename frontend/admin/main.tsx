@@ -5,6 +5,7 @@ import Admin from "./Admin.tsx";
 
 import Endpoints from "./Endpoints.tsx";
 import ManageEndpoint from "./ManageEndpoint.tsx";
+import TestEndpoint from "./TestEndpoint.tsx";
 
 import Users from "./Users.tsx";
 import ManageUser from "./ManageUser.tsx";
@@ -22,7 +23,10 @@ render(
             <Route path="/*" component={Endpoints} />
             <Route path="/endpoints" component={Endpoints}>
                 <Route path="/*" />
-                <Route path="/:id" component={ManageEndpoint} />
+                <Route path="/:id">
+                    <Route path="/modify" component={ManageEndpoint} />
+                    <Route path="/test" component={TestEndpoint} />
+                </Route>
                 <Route path="/new" component={ManageEndpoint} />
             </Route>
             <Route path="/users" component={Users}>

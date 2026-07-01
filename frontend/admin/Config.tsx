@@ -13,7 +13,7 @@ import {
     useContext,
 } from "solid-js";
 
-import { useNavigate, type RouteSectionProps } from "@solidjs/router";
+import { type RouteSectionProps } from "@solidjs/router";
 export interface ConfigStruct {
     listening_addr: string;
     serve_static_files: boolean;

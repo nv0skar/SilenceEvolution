@@ -1,6 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
+import { type EndpointStruct } from "./Endpoint";
 import { EndpointsContext } from "./Endpoints";
 
 import {
@@ -18,21 +19,6 @@ import {
 } from "@solidjs/router";
 
 import { loadGrammar } from "@arborium/arborium";
-
-export interface EndpointStruct {
-    id: string;
-    route: string;
-    description: string | null;
-    version: string | null;
-    method: string;
-    query_params: Array<string>;
-    body_params: Array<string>;
-    query: string | null;
-    require_auth: boolean;
-    allowed_roles: Array<string>;
-    inject_user_id: boolean;
-    auto_generated: boolean;
-}
 
 export default (_: RouteSectionProps) => {
     const endpoints_context = useContext(EndpointsContext);
@@ -122,11 +108,6 @@ export default (_: RouteSectionProps) => {
         }
 
         endpoints_context.refetch_endpoints();
-
-        navigate("/endpoints", {
-            replace: false,
-            scroll: false,
-        });
     };
 
     const delete_endpoint = async () => {
@@ -180,7 +161,7 @@ export default (_: RouteSectionProps) => {
                 <div>
                     <h1 class="text-3xl text-center pt-4 font-bold">
                         {endpoint_data !== undefined
-                            ? endpoint_data.endpoint.id
+                            ? `✏️ ${endpoint_data.endpoint.id}`
                             : "New endpoint"}
                     </h1>
                 </div>

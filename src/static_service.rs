@@ -67,9 +67,14 @@ impl Service<RouterRequest> for StaticService {
                     _ => {
                         // Get static file from Silence's project folder.
                         if *AppCx::acquire().config().read().await.serve_static_files() {
-                            let mut static_path = get_workspace_root("config.json")
-                                .unwrap_or(current_dir().unwrap())
-                                .join("static");
+                            let workspace_root =
+                                get_workspace_root("config.json").unwrap_or(current_dir().unwrap());
+
+                            let mut static_path = workspace_root.join("static");
+
+                            if let Ok(false) = try_exists(static_path.to_owned()).await {
+                                static_path = workspace_root.join("web"); // for academic purposes we will use the directory `web` as a fallback.
+                            }
 
                             assert!(!route.contains("..")); // listing directories outside `static` is explicitly forbidden.
 

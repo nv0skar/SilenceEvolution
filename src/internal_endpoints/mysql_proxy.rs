@@ -17,10 +17,13 @@ pub struct MySQLExecuteProxy {
 boxed_any!(MySQLExecuteProxy);
 
 impl MySQLExecuteProxy {
-    pub fn new(query: CompactString) -> Self {
-        Self {
-            queries: CheapVec::from_vec(vec![query]),
-        }
+    pub fn new(queries: CompactString) -> Self {
+        let queries = queries
+            .split(';')
+            .map(|query| query.into())
+            .collect::<CheapVec<CompactString>>();
+
+        Self { queries }
     }
 
     /// This will enable Silence to execute multiple MySQL queries until Waveless' MySQL implements this.
