@@ -108,6 +108,12 @@ export default (_: RouteSectionProps) => {
         }
 
         endpoints_context.refetch_endpoints();
+
+        if (endpoint_data === undefined)
+            navigate("/endpoints", {
+                replace: false,
+                scroll: false,
+            });
     };
 
     const delete_endpoint = async () => {

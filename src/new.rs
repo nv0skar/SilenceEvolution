@@ -14,24 +14,28 @@ use sea_orm::QueryResult;
 pub struct NewMigrations;
 
 // Runs database's migrations.
-pub async fn run_migrations(_db_name: CompactString) -> Result<()> {
-    let db_conn = DATABASES_CONNS
-        .get()
-        .unwrap()
+pub async fn run_migrations(_internal_db_name: Option<CompactString>) -> Result<()> {
+    let db_conns = DATABASES_CONNS.get().unwrap().to_owned();
+
+    let _main_db_conn = db_conns
         .search(None)?
-        .to_owned()
         .into_arc_any()
         .downcast::<mysql::MySQLConnection>()
         .unwrap();
 
-    let new_project_script = String::from_utf8(
-        NewMigrations::get("new_project.sql")
-            .unwrap()
-            .data()
-            .to_vec(),
-    )?; // it requires `.to_vec()` at release.
+    let db_conn = match _internal_db_name {
+        Some(_) => db_conns
+            .search(Some("internal".into()))?
+            .into_arc_any()
+            .downcast::<mysql::MySQLConnection>()
+            .unwrap(),
+        None => _main_db_conn,
+    };
 
-    let queries = new_project_script
+    let internal_script =
+        String::from_utf8(NewMigrations::get("internal.sql").unwrap().data().to_vec())?; // it requires `.to_vec()` at release.
+
+    let queries = internal_script
         .lines()
         .map(|line| line.to_compact_string())
         .filter(|line| !line.starts_with("--"))
@@ -42,70 +46,6 @@ pub async fn run_migrations(_db_name: CompactString) -> Result<()> {
         .split(";")
         .map(|query| query.to_compact_string())
         .collect::<CheapVec<CompactString>>();
-
-    // FIX: sea-schema won't accept MariaDB's default database's encoding on Windows...
-    // #[cfg(target_os = "windows")]
-    // {
-    //     debug!("Changing database's default encoding.");
-
-    //     db_conn
-    //         .execute(databases::DatabaseInput::Query(
-    //             "SET FOREIGN_KEY_CHECKS=0".into(),
-    //         ))
-    //         .await?;
-    //     db_conn
-    //         .execute(databases::DatabaseInput::Query(
-    //             "SET SESSION character_set_server = 'utf8mb4'".into(),
-    //         ))
-    //         .await?;
-    //     db_conn
-    //         .execute(databases::DatabaseInput::Query(
-    //             "SET SESSION collation_server = 'utf8mb4_unicode_ci'".into(),
-    //         ))
-    //         .await?;
-
-    //     // Change the encoding for new tables.
-    //     statements.insert_many(
-    //         0,
-    //         [format!(
-    //             "ALTER DATABASE {} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
-    //             _db_name
-    //         )
-    //         .into()],
-    //     );
-
-    //     statements.push("SET FOREIGN_KEY_CHECKS=1".into());
-
-    //     // Convert current tables.
-    //     let DatabaseOutput::Any(execute) = db_conn
-    //         .execute(databases::DatabaseInput::Query(
-    //             format!(
-    //                 "SELECT CONCAT(
-    //                     'ALTER TABLE `', TABLE_SCHEMA, '`.`', TABLE_NAME, '` ',
-    //                     'CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, ',
-    //                     'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
-    //                  ) AS execute
-    //                  FROM information_schema.TABLES
-    //                  WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE'",
-    //                 _db_name
-    //             )
-    //             .into(),
-    //         ))
-    //         .await?
-    //     else {
-    //         bail!("Couldn't change the encoding of existing database's tables.");
-    //     };
-
-    //     let res = execute
-    //         .downcast::<Vec<QueryResult>>()
-    //         .map_err(|err| anyhow!("Cannot downcast to MySQL query result. {:?}", err))?;
-
-    //     for entry in *res {
-    //         if let Ok(query) = entry.try_get::<String>("", "execute") {
-    //             db_conn.execute(DatabaseInput::Query(query.into())).await?;
-    //         }
-    //     }
-    // }
 
     let mut statements = statements.into_iter();
 
@@ -125,6 +65,7 @@ pub async fn new_project(
     name: CompactString,
     db_host: Option<SocketAddr>,
     db_name: Option<CompactString>,
+    internal_db_name: Option<CompactString>,
     db_user: Option<CompactString>,
     db_password: Option<CompactString>,
     prefer_web_directory: bool,
@@ -134,23 +75,27 @@ pub async fn new_project(
 
     // Execute database's migrations if database data is given.
     if let (Some(db_name), Some(db_user), Some(db_password)) = (db_name, db_user, db_password) {
-        *config.database_conn_mut() = databases::mysql::MySQLDBConnectionConfig::new(
-            db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
-            db_user,
-            db_password,
-            db_name.to_owned(),
+        *config.databases_conn_mut() = config::DatabasesConnectionConfig::new(
+            mysql::MySQLDBConnectionConfig::new(
+                db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+                db_user.to_owned(),
+                db_password.to_owned(),
+                db_name.to_owned(),
+            ),
+            match &internal_db_name {
+                Some(internal_db_name) => Some(mysql::MySQLDBConnectionConfig::new(
+                    db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+                    db_user,
+                    db_password,
+                    internal_db_name.to_owned(),
+                )),
+                None => None,
+            },
         );
 
-        DatabasesConnections::load(CheapVec::from_vec(vec![config.into_database_config()])).await?;
+        DatabasesConnections::load(config.into_database_config()).await?;
 
-        run_migrations(db_name).await?;
-    } else {
-        *config.database_conn_mut() = databases::mysql::MySQLDBConnectionConfig::new(
-            db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
-            "db_user".into(),
-            "db_password".into(),
-            "db_password".into(),
-        );
+        run_migrations(internal_db_name).await?;
     }
 
     // Create the project's folder.

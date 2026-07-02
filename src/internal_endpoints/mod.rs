@@ -12,6 +12,8 @@ use crate::*;
 use execute::mysql::*;
 
 pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
+    // NOTE: if the main and internal databases are the same, two connections to the same database are still opened as the app's cx cannot be accessed from here due to the app's initialization order.
+
     Endpoints::new_unchecked(CheapVec::from_vec(vec![
         EndpointBuilder::default()
             .id("Whoami".into())
@@ -19,10 +21,11 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal".into())
             .method(HttpMethod::Get)
             .execute(Arc::new(MySQLExecuteProxy::new(
-                "SELECT users.|user_id_row|, users.name, users.email, roles.role FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.|user_id_row| = users.|user_id_row|) WHERE (users.|user_id_row| = |user_id|)"
+                "SELECT users.user_id, users.name, users.email, roles.role FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.user_id = users.user_id) WHERE (users.user_id = |user_id|)"
                     .into(),
             )))
             .description("Returns the current user.".into())
+            .target_database("internal".into())
             .require_auth(true)
             .inject_user_id(true)
             .auto_generated(true)
@@ -34,9 +37,10 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal".into())
             .method(HttpMethod::Get)
             .execute(Arc::new(MySQLExecuteProxy::new_many(
-                 CheapVec::from_vec(vec!["INSERT INTO |roles_target_table| (|user_id_row|, role) SELECT users.|user_id_row|, 'admin' FROM |users_target_table| as users WHERE (SELECT COUNT(*) FROM |users_target_table|) = 1;".into(), "SELECT roles.role FROM |roles_target_table| as roles WHERE (roles.|user_id_row| = |user_id|)".into()]
+                 CheapVec::from_vec(vec!["INSERT INTO |roles_target_table| (user_id, role) SELECT users.user_id, 'admin' FROM |users_target_table| as users WHERE (SELECT COUNT(*) FROM |users_target_table|) = 1;".into(), "SELECT roles.role FROM |roles_target_table| as roles WHERE (roles.user_id = |user_id|)".into()]
             ))))
             .description("If there is only a single user, give it the admin role.".into())
+            .target_database("internal".into())
             .require_auth(true)
             .inject_user_id(true)
             .auto_generated(true)
@@ -48,10 +52,11 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".into())
             .method(HttpMethod::Get)
             .execute(Arc::new(MySQLExecuteProxy::new(
-                "SELECT users.|user_id_row|, users.name, users.email, roles.role, users.password FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.|user_id_row| = users.|user_id_row|)"
+                "SELECT users.user_id, users.name, users.email, roles.role, users.password FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.user_id = users.user_id)"
                     .into(),
             )))
             .description("Returns all users.".into())
+            .target_database("internal".into())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
             .auto_generated(true)
@@ -63,10 +68,11 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".into())
             .method(HttpMethod::Get)
             .execute(Arc::new(MySQLExecuteProxy::new(
-                "SELECT users.|user_id_row|, users.name, users.email, roles.role, users.password FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.|user_id_row| = users.|user_id_row|) WHERE (users.|user_id_row| = {user_id})"
+                "SELECT users.user_id, users.name, users.email, roles.role, users.password FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.user_id = users.user_id) WHERE (users.user_id = {user_id})"
                     .into(),
             )))
             .description("Returns a user given its id.".into())
+            .target_database("internal".into())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
             .auto_generated(true)
@@ -78,9 +84,10 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".into())
             .method(HttpMethod::Post)
             .execute(Arc::new(MySQLExecuteProxy::new_many(
-                CheapVec::from_vec(vec!["INSERT INTO |users_target_table| (name, email, password) VALUES ({name}, {email}, {password})".into(), "INSERT INTO |roles_target_table| (|user_id_row|, role) SELECT users.|user_id_row|, {role} FROM |users_target_table| as users WHERE (users.email = {email})".into()])
+                CheapVec::from_vec(vec!["INSERT INTO |users_target_table| (name, email, password) VALUES ({name}, {email}, {password})".into(), "INSERT INTO |roles_target_table| (user_id, role) SELECT users.user_id, {role} FROM |users_target_table| as users WHERE (users.email = {email})".into()])
             ))) // maybe `RETURNING` does not work with preparated statements?
             .description("Creates a new user without doing the signup flow (it won't generate a session token).".into())
+            .target_database("internal".into())
             .body_params(CheapVec::from_vec(vec!["name".into(), "email".into(), "role".into(), "password".into()]))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
@@ -93,9 +100,10 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".into())
             .method(HttpMethod::Put)
             .execute(Arc::new(MySQLExecuteProxy::new_many(
-                 CheapVec::from_vec(vec!["UPDATE |users_target_table| SET name={name}, email={email}, password={password} WHERE (|user_id_row| = {user_id})".into(), "REPLACE INTO |roles_target_table| (|user_id_row|, role) VALUES ({user_id}, {role})".into()])
+                 CheapVec::from_vec(vec!["UPDATE |users_target_table| SET name={name}, email={email}, password={password} WHERE (user_id = {user_id})".into(), "REPLACE INTO |roles_target_table| (user_id, role) VALUES ({user_id}, {role})".into()])
             )))
             .description("Modifies an existing user given its id.".into())
+            .target_database("internal".into())
             .body_params(CheapVec::from_vec(vec!["name".into(), "email".into(), "role".into(), "password".into()]))
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
@@ -108,9 +116,10 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".into())
             .method(HttpMethod::Delete)
             .execute(Arc::new(MySQLExecuteProxy::new(
-                "DELETE FROM |users_target_table| WHERE (|user_id_row| = {user_id});".into(),
+                "DELETE FROM |users_target_table| WHERE (user_id = {user_id});".into(),
             )))
             .description("Deletes an user given its id.".into())
+            .target_database("internal".into())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
             .auto_generated(true)
@@ -122,9 +131,10 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .version("internal/admin".into())
             .method(HttpMethod::Delete)
             .execute(Arc::new(MySQLExecuteProxy::new(
-                "DELETE FROM |roles_target_table| WHERE (|user_id_row| = {user_id});".into(),
+                "DELETE FROM |roles_target_table| WHERE (user_id = {user_id});".into(),
             )))
             .description("Deletes the role of a given user id.".into())
+            .target_database("internal".into())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
             .auto_generated(true)

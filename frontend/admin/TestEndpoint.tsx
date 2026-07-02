@@ -204,7 +204,7 @@ export default (_: RouteSectionProps) => {
                 fromEntries,
             );
 
-            return JSON.stringify(skeleton).replaceAll('"', "");
+            return JSON.stringify(skeleton);
         } else {
             return "{}";
         }

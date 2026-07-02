@@ -312,7 +312,7 @@ export default (props: RouteSectionProps) => {
                     <div class="overflow-x-auto">
                         <div class="table text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
-                                <div class="table-row font-bold bg-base-200 [&_div]:w-auto [&_div]:p-2 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                <div class="table-row font-bold bg-base-200 [&_div]:w-auto [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
                                     <div class="table-cell rounded-tl-xl!"></div>
                                     <div class="table-cell">ID</div>
                                     <div class="table-cell">Route</div>
@@ -402,7 +402,7 @@ export default (props: RouteSectionProps) => {
                                             }
                                         >
                                             <div
-                                                class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:lg:p-1.5 [&_div]:align-middle"
+                                                class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:align-middle"
                                                 // @ts-ignore
                                                 popovertarget={`endpoint-row-${ix}-dropdown`}
                                                 style={`anchor-name:--endpoint-row-${ix}`}

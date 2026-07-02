@@ -26,8 +26,6 @@ use config::*;
 
 use waveless_compiler::{COMPILER_CX, CompilerCx, discovery::*};
 
-use databases::*;
-
 pub type SimpleEndpointsByFile = CheapVec<(Option<PathBuf>, CheapVec<SimpleEndpoint>)>;
 
 #[derive(Constructor, Getters, Debug)]
@@ -64,35 +62,6 @@ impl AppCx {
             APP_CX.set(self).unwrap();
         } else {
             panic!("App's context has already been initialized.");
-        }
-
-        // Loads the Silence's app's database into the databases manager (`waveless_commons::databases::DatabasesConnections`).
-        DatabasesConnections::load(CheapVec::from_vec(vec![
-            Self::acquire().config().read().await.into_database_config(),
-        ]))
-        .await?;
-
-        // Change main database's session's encoding.
-        {
-            let db_conn = DATABASES_CONNS
-                .get()
-                .unwrap()
-                .search(None)?
-                .to_owned()
-                .into_arc_any()
-                .downcast::<mysql::MySQLConnection>()
-                .unwrap();
-
-            db_conn
-                .execute(databases::DatabaseInput::Query(
-                    "SET SESSION character_set_server = 'utf8mb4'".into(),
-                ))
-                .await?;
-            db_conn
-                .execute(databases::DatabaseInput::Query(
-                    "SET SESSION collation_server = 'utf8mb4_unicode_ci'".into(),
-                ))
-                .await?;
         }
 
         Ok(())

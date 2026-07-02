@@ -21,6 +21,7 @@ impl MySQLExecuteProxy {
         let queries = queries
             .split(';')
             .map(|query| query.into())
+            .filter(|query: &CompactString| !query.is_empty())
             .collect::<CheapVec<CompactString>>();
 
         Self { queries }
@@ -43,10 +44,7 @@ impl AnyExecute for MySQLExecuteProxy {
     ) -> Result<ExecuteOutput, RequestError> {
         // Inject runtime parameters.
         let _config_guard = AppCx::acquire().config().read().await;
-        input.params_mut().insert(
-            "user_id_row".to_compact_string(),
-            ExecuteParamValue::Internal(_config_guard.internal_params().user_id().to_owned()),
-        );
+
         input.params_mut().insert(
             "users_target_table".to_compact_string(),
             ExecuteParamValue::Internal(
@@ -78,7 +76,7 @@ impl AnyExecute for MySQLExecuteProxy {
         let mut last_res: Result<ExecuteOutput, RequestError> =
             Err(RequestError::Other(anyhow!("No query was executed.")));
 
-        for query in self.queries.to_owned() {
+        for query in self.queries.iter().filter(|query| !query.is_empty()) {
             let mysql_execute = Arc::new(MySQLExecute::new(query.to_owned()));
 
             last_res = mysql_execute

@@ -18,7 +18,7 @@ tokio = { version = "1.48", features = ["full", "tracing"] }
 futures = "0.3.31"
 
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-toml = "0.9.12+spec-1.1.0"
+toml = "0.9.12"
 serde_json = "1.0.149"
 serde_with = { version = "3.16", features = ["chrono"] }
 

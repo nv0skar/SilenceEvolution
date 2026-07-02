@@ -14,22 +14,29 @@ import {
 } from "solid-js";
 
 import { type RouteSectionProps } from "@solidjs/router";
+
+import { pipe, entries, find } from "remeda";
+
 export interface ConfigStruct {
     listening_addr: string;
     serve_static_files: boolean;
     internal_params: {
-        user_id: string;
         users_target_table: string;
         sessions_target_table: string;
         roles_target_table: string;
     };
     skip_endpoints_ids: Array<string>;
-    database_conn: {
-        host: string;
-        username: string;
-        password: string;
-        db: string;
+    databases_conn: {
+        main: DatabaseConn;
+        internal: DatabaseConn;
     };
+}
+
+export interface DatabaseConn {
+    host: string;
+    username: string;
+    password: string;
+    db: string;
 }
 
 export default (props: RouteSectionProps) => {
@@ -70,7 +77,6 @@ export default (props: RouteSectionProps) => {
                     ? true
                     : false,
             internal_params: {
-                user_id: form_data["user_id_row"]?.toString().toLowerCase(),
                 users_target_table: form_data["users_target_table"]
                     ?.toString()
                     .toLowerCase(),
@@ -87,13 +93,43 @@ export default (props: RouteSectionProps) => {
                     .split(",")
                     .filter((val) => val.length !== 0),
             ),
-            database_conn: {
-                host: form_data["db_host"]?.toString().toLowerCase(),
-                username: form_data["db_username"]?.toString().toLowerCase(),
-                password: form_data["db_password"]?.toString().toLowerCase(),
-                db: form_data["db_name"]?.toString().toLowerCase(),
+            databases_conn: {
+                main: {
+                    host: form_data["db_host"]?.toString().toLowerCase(),
+                    username: form_data["db_username"]
+                        ?.toString()
+                        .toLowerCase(),
+                    password: form_data["db_password"]
+                        ?.toString()
+                        .toLowerCase(),
+                    db: form_data["db_name"]?.toString().toLowerCase(),
+                },
+                internal: {
+                    host: form_data["internal_db_host"]
+                        ?.toString()
+                        .toLowerCase(),
+                    username: form_data["internal_db_username"]
+                        ?.toString()
+                        .toLowerCase(),
+                    password: form_data["internal_db_password"]
+                        ?.toString()
+                        .toLowerCase(),
+                    db: form_data["internal_db_name"]?.toString().toLowerCase(),
+                },
             },
         } as ConfigStruct;
+
+        if (
+            pipe(
+                req.databases_conn.internal,
+                entries,
+                find(([_, value]) => value === undefined || value.length === 0),
+                Boolean,
+            )
+        ) {
+            // @ts-ignore
+            delete req.databases_conn["internal"];
+        }
 
         for (const field in req) {
             const value = req[field as keyof ConfigStruct];
@@ -144,7 +180,7 @@ export default (props: RouteSectionProps) => {
                 </div>
                 <Show when={!config.loading}>
                     <div class="grid gap gap-2 py-8">
-                        <div class="bg-base-200 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer">
+                        <div class="bg-base-200 backdrop-blur shadow rounded-box my-2 p-2 text-center">
                             <p class="font-semibold">
                                 Some changes may require a manual server
                                 restart.
@@ -211,92 +247,10 @@ export default (props: RouteSectionProps) => {
                                 </label>
                             </fieldset>
 
-                            <details class="collapse bg-base-200 border border-base-300 rounded-2xl mt-3 my-1">
-                                <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
-                                    Internal parameters
-                                </summary>
-                                <div class="collapse-content">
-                                    <fieldset class="fieldset [&_.input]:w-full lg:grid-cols-3 gap-3">
-                                        <label>
-                                            <span class="label">
-                                                User ID row
-                                            </span>
-                                            <input
-                                                name="user_id_row"
-                                                type="text"
-                                                class="input"
-                                                placeholder={
-                                                    config()?.internal_params
-                                                        .user_id
-                                                }
-                                                value={
-                                                    config()?.internal_params
-                                                        .user_id
-                                                }
-                                            />
-                                        </label>
-
-                                        <label>
-                                            <span class="label">
-                                                User's target table
-                                            </span>
-                                            <input
-                                                name="users_target_table"
-                                                type="text"
-                                                class="input"
-                                                placeholder={
-                                                    config()?.internal_params
-                                                        .users_target_table
-                                                }
-                                                value={
-                                                    config()?.internal_params
-                                                        .users_target_table
-                                                }
-                                            />
-                                        </label>
-
-                                        <label>
-                                            <span class="label">
-                                                Session's target table
-                                            </span>
-                                            <input
-                                                name="sessions_target_table"
-                                                type="text"
-                                                class="input"
-                                                placeholder={
-                                                    config()?.internal_params
-                                                        .sessions_target_table
-                                                }
-                                                value={
-                                                    config()?.internal_params
-                                                        .sessions_target_table
-                                                }
-                                            />
-                                        </label>
-
-                                        <label>
-                                            <span class="label">
-                                                Role's target table
-                                            </span>
-                                            <input
-                                                name="roles_target_table"
-                                                type="text"
-                                                class="input"
-                                                placeholder={
-                                                    config()?.internal_params
-                                                        .roles_target_table
-                                                }
-                                                value={
-                                                    config()?.internal_params
-                                                        .roles_target_table
-                                                }
-                                            />
-                                        </label>
-                                    </fieldset>
-                                </div>
-                            </details>
-
-                            <details class="collapse bg-base-200 border border-base-300 rounded-2xl mt-3 my-1">
+                            <details
+                                class="collapse bg-base-200/20 border border-base-300 rounded-2xl mt-3 my-1"
+                                open
+                            >
                                 <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
                                     Database
                                 </summary>
@@ -309,10 +263,12 @@ export default (props: RouteSectionProps) => {
                                                 type="text"
                                                 class="input"
                                                 placeholder={
-                                                    config()?.database_conn.host
+                                                    config()?.databases_conn
+                                                        .main.host
                                                 }
                                                 value={
-                                                    config()?.database_conn.host
+                                                    config()?.databases_conn
+                                                        .main.host
                                                 }
                                             />
                                         </label>
@@ -324,10 +280,12 @@ export default (props: RouteSectionProps) => {
                                                 type="text"
                                                 class="input"
                                                 placeholder={
-                                                    config()?.database_conn.db
+                                                    config()?.databases_conn
+                                                        .main.db
                                                 }
                                                 value={
-                                                    config()?.database_conn.db
+                                                    config()?.databases_conn
+                                                        .main.db
                                                 }
                                             />
                                         </label>
@@ -339,12 +297,12 @@ export default (props: RouteSectionProps) => {
                                                 type="text"
                                                 class="input"
                                                 placeholder={
-                                                    config()?.database_conn
-                                                        .username
+                                                    config()?.databases_conn
+                                                        .main.username
                                                 }
                                                 value={
-                                                    config()?.database_conn
-                                                        .username
+                                                    config()?.databases_conn
+                                                        .main.username
                                                 }
                                             />
                                         </label>
@@ -356,16 +314,204 @@ export default (props: RouteSectionProps) => {
                                                 type="text"
                                                 class="input"
                                                 placeholder={
-                                                    config()?.database_conn
-                                                        .password
+                                                    config()?.databases_conn
+                                                        .main.password
                                                 }
                                                 value={
-                                                    config()?.database_conn
-                                                        .password
+                                                    config()?.databases_conn
+                                                        .main.password
                                                 }
                                             />
                                         </label>
                                     </fieldset>
+                                </div>
+                            </details>
+
+                            <details
+                                class="collapse bg-base-200/20 border border-base-300 rounded-2xl mt-3 my-1"
+                                open
+                            >
+                                <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
+                                    Internal database
+                                </summary>
+                                <div class="collapse-content">
+                                    <fieldset class="fieldset [&_.input]:w-full lg:grid-cols-3 gap-3">
+                                        <label>
+                                            <span class="label">Host</span>
+                                            <input
+                                                name="internal_db_host"
+                                                type="text"
+                                                class="input"
+                                                placeholder={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!.host
+                                                        : "—"
+                                                }
+                                                value={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!.host
+                                                        : ""
+                                                }
+                                            />
+                                        </label>
+
+                                        <label>
+                                            <span class="label">Name</span>
+                                            <input
+                                                name="internal_db_name"
+                                                type="text"
+                                                class="input"
+                                                placeholder={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!.db
+                                                        : "—"
+                                                }
+                                                value={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!.db
+                                                        : ""
+                                                }
+                                            />
+                                        </label>
+
+                                        <label>
+                                            <span class="label">Username</span>
+                                            <input
+                                                name="internal_db_username"
+                                                type="text"
+                                                class="input"
+                                                placeholder={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!
+                                                              .username
+                                                        : "—"
+                                                }
+                                                value={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!
+                                                              .username
+                                                        : ""
+                                                }
+                                            />
+                                        </label>
+
+                                        <label>
+                                            <span class="label">Password</span>
+                                            <input
+                                                name="internal_db_password"
+                                                type="text"
+                                                class="input"
+                                                placeholder={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!
+                                                              .password
+                                                        : "—"
+                                                }
+                                                value={
+                                                    config()?.databases_conn
+                                                        .internal !== null
+                                                        ? config()
+                                                              ?.databases_conn
+                                                              .internal!
+                                                              .password
+                                                        : ""
+                                                }
+                                            />
+                                        </label>
+                                    </fieldset>
+
+                                    <details class="collapse bg-base-200/20 border border-base-300 rounded-2xl mt-3 my-1">
+                                        <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
+                                            Internal tables
+                                        </summary>
+                                        <div class="collapse-content">
+                                            <fieldset class="fieldset [&_.input]:w-full lg:grid-cols-3 gap-3">
+                                                <label>
+                                                    <span class="label">
+                                                        User's target table
+                                                    </span>
+                                                    <input
+                                                        name="users_target_table"
+                                                        type="text"
+                                                        class="input"
+                                                        placeholder={
+                                                            config()
+                                                                ?.internal_params
+                                                                .users_target_table
+                                                        }
+                                                        value={
+                                                            config()
+                                                                ?.internal_params
+                                                                .users_target_table
+                                                        }
+                                                    />
+                                                </label>
+
+                                                <label>
+                                                    <span class="label">
+                                                        Session's target table
+                                                    </span>
+                                                    <input
+                                                        name="sessions_target_table"
+                                                        type="text"
+                                                        class="input"
+                                                        placeholder={
+                                                            config()
+                                                                ?.internal_params
+                                                                .sessions_target_table
+                                                        }
+                                                        value={
+                                                            config()
+                                                                ?.internal_params
+                                                                .sessions_target_table
+                                                        }
+                                                    />
+                                                </label>
+
+                                                <label>
+                                                    <span class="label">
+                                                        Role's target table
+                                                    </span>
+                                                    <input
+                                                        name="roles_target_table"
+                                                        type="text"
+                                                        class="input"
+                                                        placeholder={
+                                                            config()
+                                                                ?.internal_params
+                                                                .roles_target_table
+                                                        }
+                                                        value={
+                                                            config()
+                                                                ?.internal_params
+                                                                .roles_target_table
+                                                        }
+                                                    />
+                                                </label>
+                                            </fieldset>
+                                        </div>
+                                    </details>
                                 </div>
                             </details>
 

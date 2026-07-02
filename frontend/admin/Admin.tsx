@@ -106,14 +106,17 @@ export default (props: RouteSectionProps) => {
                                     </span>
                                 </label>
                                 <Show when={config() !== undefined}>
-                                    <span class="text-[0.5rem] max-h-16 not-lg:max-w-28 lg:text-xs text-emerald-700 dark:text-emerald-500 font-semibold animate-pulse bg-base-300/90 backdrop-blur-xs rounded-2xl border border-base-200 px-3 py-1 lg:ml-24 overflow-y-scroll scrollbar-none">
+                                    <span class="text-[0.5rem] max-h-16 not-lg:max-w-28 lg:text-xs text-emerald-700 dark:text-emerald-500 font-semibold animate-pulse bg-base-300/50 backdrop-blur-xs rounded-2xl border border-base-200 px-3 py-1 lg:ml-24 overflow-y-scroll scrollbar-none">
                                         Running on database{" "}
                                         <span class="font-black">
-                                            {config()?.database_conn.db}
+                                            {config()?.databases_conn.main.db}
                                         </span>{" "}
                                         as{" "}
                                         <span class="font-black">
-                                            {config()?.database_conn.username}
+                                            {
+                                                config()?.databases_conn.main
+                                                    .username
+                                            }
                                         </span>{" "}
                                         listening at{" "}
                                         <span class="font-black">

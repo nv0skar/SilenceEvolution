@@ -5,7 +5,7 @@ use silence::*;
 
 use silence::internal_endpoints::mysql_proxy::*;
 
-use waveless_commons::{databases::*, *};
+use waveless_commons::{databases::*, project::AnyDatabaseConnectionConfig, *};
 use waveless_executor::*;
 
 use execute::mysql::*;
@@ -76,6 +76,9 @@ nest! {
                     #[arg(short = 'n', long = "db_name", help = "Database's name.")]
                     db_name: Option<CompactString>,
 
+                    #[arg(long = "internal_db_name", help = "Internal database's name.")]
+                    internal_db_name: Option<CompactString>,
+
                     #[arg(short = 'u', long = "db_user", help = "Database's user.")]
                     db_user: Option<CompactString>,
 
@@ -113,6 +116,45 @@ async fn try_main() -> Result<ResultContext> {
 
             match app_cx {
                 Some(_app_cx) => {
+                    // Create internal database if necessary.
+                    let _internal_db_name =
+                        match _app_cx.config().read().await.databases_conn().internal() {
+                            Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
+                            None => None,
+                        };
+
+                    if let Some(internal_db_name) = &_internal_db_name {
+                        let config = _app_cx.config().read().await;
+
+                        let (any_db_conn, _) = config
+                            .databases_conn()
+                            .main()
+                            .new_conn("main".into(), None, None)
+                            .await?;
+
+                        let db_conn = any_db_conn
+                            .into_arc_any()
+                            .downcast::<mysql::MySQLConnection>()
+                            .unwrap();
+
+                        db_conn
+                            .execute(DatabaseInput::Query(
+                                format!("CREATE DATABASE IF NOT EXISTS {}", internal_db_name)
+                                    .into(),
+                            ))
+                            .await?;
+                    }
+
+                    // Load the Silence's app's database into the databases manager (`waveless_commons::databases::DatabasesConnections`).
+                    DatabasesConnections::load(
+                        _app_cx.config().read().await.into_database_config(),
+                    )
+                    .await?;
+
+                    // Run database migrations.
+                    run_migrations(_internal_db_name).await?;
+
+                    // Set App's CX globally.
                     _app_cx.set_global_cx().await?;
 
                     if display_endpoints_on_start {
@@ -279,17 +321,6 @@ async fn try_main() -> Result<ResultContext> {
                     }
                     .print();
 
-                    run_migrations(
-                        AppCx::acquire()
-                            .config()
-                            .read()
-                            .await
-                            .database_conn()
-                            .db()
-                            .to_owned(),
-                    )
-                    .await?;
-
                     serve(
                         match runtime_executor.listening_addr() {
                             Some(addr) => Some(addr.to_owned()),
@@ -313,6 +344,7 @@ async fn try_main() -> Result<ResultContext> {
             name,
             db_host,
             db_name,
+            internal_db_name,
             db_user,
             db_password,
             prefer_web_directory,
@@ -321,6 +353,7 @@ async fn try_main() -> Result<ResultContext> {
                 name,
                 db_host,
                 db_name,
+                internal_db_name,
                 db_user,
                 db_password,
                 prefer_web_directory,
@@ -336,12 +369,21 @@ async fn try_main() -> Result<ResultContext> {
                 ));
             };
 
-            DatabasesConnections::load(CheapVec::from_vec(vec![
-                app_cx.config().read().await.into_database_config(),
-            ]))
-            .await?;
+            DatabasesConnections::load(app_cx.config().read().await.into_database_config()).await?;
 
-            run_migrations(app_cx.config().read().await.database_conn().db().to_owned()).await?;
+            run_migrations(
+                match AppCx::acquire()
+                    .config()
+                    .read()
+                    .await
+                    .databases_conn()
+                    .internal()
+                {
+                    Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
+                    None => None,
+                },
+            )
+            .await?;
 
             Ok("Migrations ran successfully.".into())
         }

@@ -35,7 +35,7 @@ pub struct Config {
     skip_endpoints_ids: CheapVec<CompactString>,
 
     /// Defines MySQL connection config.
-    database_conn: MySQLDBConnectionConfig,
+    databases_conn: DatabasesConnectionConfig,
 }
 
 impl Default for Config {
@@ -46,12 +46,7 @@ impl Default for Config {
             internal_params: Default::default(),
             skip_discovery_tables: CheapVec::new(),
             skip_endpoints_ids: CheapVec::new(),
-            database_conn: MySQLDBConnectionConfig::new(
-                SocketAddr::new("127.0.0.1".parse().unwrap(), 3306),
-                "iissi_user".to_compact_string(),
-                "iissi$user".to_compact_string(),
-                "example_db".to_compact_string(),
-            ),
+            databases_conn: DatabasesConnectionConfig::default(),
         }
     }
 }
@@ -61,7 +56,6 @@ impl Default for Config {
 #[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
 #[getset(get = "pub")]
 pub struct InternalParams {
-    user_id: CompactString,
     users_target_table: CompactString,
     sessions_target_table: CompactString,
     roles_target_table: CompactString,
@@ -70,7 +64,6 @@ pub struct InternalParams {
 impl Default for InternalParams {
     fn default() -> Self {
         Self {
-            user_id: "user_id".to_compact_string(),
             users_target_table: "silence_users".to_compact_string(),
             sessions_target_table: "silence_sessions".to_compact_string(),
             roles_target_table: "silence_roles".to_compact_string(),
@@ -78,8 +71,40 @@ impl Default for InternalParams {
     }
 }
 
+/// TODO: add docs here.
+#[derive(
+    Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, MutGetters, Patch, Debug,
+)]
+#[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
+#[getset(get = "pub", get_mut = "pub")]
+pub struct DatabasesConnectionConfig {
+    main: MySQLDBConnectionConfig,
+    internal: Option<MySQLDBConnectionConfig>,
+}
+
+impl Default for DatabasesConnectionConfig {
+    fn default() -> Self {
+        Self {
+            main: MySQLDBConnectionConfig::new(
+                SocketAddr::new("127.0.0.1".parse().unwrap(), 3306),
+                "iissi_user".to_compact_string(),
+                "iissi$user".to_compact_string(),
+                "example_db".to_compact_string(),
+            ),
+            internal: Some(MySQLDBConnectionConfig::new(
+                SocketAddr::new("127.0.0.1".parse().unwrap(), 3306),
+                "iissi_user".to_compact_string(),
+                "iissi$user".to_compact_string(),
+                "silence".to_compact_string(),
+            )),
+        }
+    }
+}
+
 impl Config {
-    pub fn into_database_config(&self) -> DatabaseConfig {
+    pub fn into_database_config(&self) -> CheapVec<DatabaseConfig> {
+        let mut database_configs = CheapVec::new();
+
         let mut skip_tables = self.skip_discovery_tables().to_owned();
         skip_tables.append(&mut CheapVec::<CompactString>::from_vec(vec![
             self.internal_params.users_target_table.to_owned(),
@@ -87,48 +112,62 @@ impl Config {
             self.internal_params.roles_target_table.to_owned(),
         ]));
 
-        DatabaseConfig::new(
+        database_configs.push(DatabaseConfig::new(
             "main".to_compact_string(),
             true,
-            Arc::new(self.database_conn.to_owned()),
+            Arc::new(self.databases_conn.main().to_owned()),
             Some(DataSchemaDiscoveryConfig::new(
-                Arc::new(MySQLSchemaDiscoveryMethod::new(skip_tables)),
+                Arc::new(MySQLSchemaDiscoveryMethod::new(skip_tables.to_owned())),
                 true,
                 false,
             )),
             None,
             None,
-        )
+        ));
+
+        database_configs.push(DatabaseConfig::new(
+            "internal".to_compact_string(),
+            false,
+            Arc::new(match self.databases_conn().internal() {
+                Some(internal_db_config) => internal_db_config.to_owned(),
+                None => self.databases_conn().main().to_owned(),
+            }),
+            None,
+            None,
+            None,
+        ));
+
+        database_configs
     }
 
     pub fn into_build(self, endpoints: Endpoints) -> ExecutorBuild {
         ExecutorBuild::new(
             project::Config::new(
-                "Silence App".to_compact_string(),
-                CheapVec::from_vec(vec![self.into_database_config()]),
+                "Silence App".into(),
+                self.into_database_config(),
                 Some(Authentication::new(
                     CheapVec::from_vec(vec![Arc::new(MySQLSimpleAuthenticationMethod::new(
-                        None,
+                        Some("internal".into()),
                         self.internal_params.users_target_table.to_owned(),
-                        self.internal_params.user_id.to_owned(),
-                        "email".to_compact_string(),
-                        "password".to_compact_string(),
-                        CheapVec::from_vec(vec!["name".to_compact_string()]),
+                        "user_id".into(),
+                        "email".into(),
+                        "password".into(),
+                        CheapVec::from_vec(vec!["name".into()]),
                         None,
                     ))]),
                     Arc::new(MySQLToken::new(
-                        None,
+                        Some("internal".into()),
                         self.internal_params.sessions_target_table.to_owned(),
-                        "token_id".to_compact_string(),
-                        self.internal_params.user_id.to_owned(),
-                        "created_at".to_compact_string(),
+                        "token_id".into(),
+                        "user_id".into(),
+                        "created_at".into(),
                         3600,
                     )),
                     Some(Arc::new(MySQLRole::new(
-                        None,
+                        Some("internal".into()),
                         self.internal_params.roles_target_table.to_owned(),
-                        self.internal_params.user_id.to_owned(),
-                        "role".to_compact_string(),
+                        "user_id".into(),
+                        "role".into(),
                     ))),
                     None,
                     true,

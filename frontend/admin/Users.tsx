@@ -133,7 +133,7 @@ export default (props: RouteSectionProps) => {
                     <div class="overflow-x-auto">
                         <div class="table text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
-                                <div class="table-row font-bold bg-base-200 [&_div]:p-2 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                <div class="table-row font-bold bg-base-200 [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
                                     <div class="table-cell rounded-tl-xl!"></div>
                                     <div class="table-cell">Name</div>
                                     <div class="table-cell">Email</div>
@@ -153,7 +153,7 @@ export default (props: RouteSectionProps) => {
                                 >
                                     {(user, _) => (
                                         <div
-                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:lg:p-1.5 [&_div]:align-middle"
+                                            class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:align-middle"
                                             onClick={() =>
                                                 navigate(
                                                     `/users/${user().user_id}`,
