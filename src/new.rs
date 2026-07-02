@@ -44,68 +44,68 @@ pub async fn run_migrations(_db_name: CompactString) -> Result<()> {
         .collect::<CheapVec<CompactString>>();
 
     // FIX: sea-schema won't accept MariaDB's default database's encoding on Windows...
-    #[cfg(target_os = "windows")]
-    {
-        debug!("Changing database's default encoding.");
+    // #[cfg(target_os = "windows")]
+    // {
+    //     debug!("Changing database's default encoding.");
 
-        db_conn
-            .execute(databases::DatabaseInput::Query(
-                "SET FOREIGN_KEY_CHECKS=0".into(),
-            ))
-            .await?;
-        db_conn
-            .execute(databases::DatabaseInput::Query(
-                "SET SESSION character_set_server = 'utf8mb4'".into(),
-            ))
-            .await?;
-        db_conn
-            .execute(databases::DatabaseInput::Query(
-                "SET SESSION collation_server = 'utf8mb4_unicode_ci'".into(),
-            ))
-            .await?;
+    //     db_conn
+    //         .execute(databases::DatabaseInput::Query(
+    //             "SET FOREIGN_KEY_CHECKS=0".into(),
+    //         ))
+    //         .await?;
+    //     db_conn
+    //         .execute(databases::DatabaseInput::Query(
+    //             "SET SESSION character_set_server = 'utf8mb4'".into(),
+    //         ))
+    //         .await?;
+    //     db_conn
+    //         .execute(databases::DatabaseInput::Query(
+    //             "SET SESSION collation_server = 'utf8mb4_unicode_ci'".into(),
+    //         ))
+    //         .await?;
 
-        // Change the encoding for new tables.
-        statements.insert_many(
-            0,
-            [format!(
-                "ALTER DATABASE {} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
-                _db_name
-            )
-            .into()],
-        );
+    //     // Change the encoding for new tables.
+    //     statements.insert_many(
+    //         0,
+    //         [format!(
+    //             "ALTER DATABASE {} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    //             _db_name
+    //         )
+    //         .into()],
+    //     );
 
-        statements.push("SET FOREIGN_KEY_CHECKS=1".into());
+    //     statements.push("SET FOREIGN_KEY_CHECKS=1".into());
 
-        // Convert current tables.
-        let DatabaseOutput::Any(execute) = db_conn
-            .execute(databases::DatabaseInput::Query(
-                format!(
-                    "SELECT CONCAT(
-                        'ALTER TABLE `', TABLE_SCHEMA, '`.`', TABLE_NAME, '` ',
-                        'CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, ',
-                        'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
-                     ) AS execute
-                     FROM information_schema.TABLES
-                     WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE'",
-                    _db_name
-                )
-                .into(),
-            ))
-            .await?
-        else {
-            bail!("Couldn't change the encoding of existing database's tables.");
-        };
+    //     // Convert current tables.
+    //     let DatabaseOutput::Any(execute) = db_conn
+    //         .execute(databases::DatabaseInput::Query(
+    //             format!(
+    //                 "SELECT CONCAT(
+    //                     'ALTER TABLE `', TABLE_SCHEMA, '`.`', TABLE_NAME, '` ',
+    //                     'CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, ',
+    //                     'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+    //                  ) AS execute
+    //                  FROM information_schema.TABLES
+    //                  WHERE TABLE_SCHEMA = '{}' AND TABLE_TYPE = 'BASE TABLE'",
+    //                 _db_name
+    //             )
+    //             .into(),
+    //         ))
+    //         .await?
+    //     else {
+    //         bail!("Couldn't change the encoding of existing database's tables.");
+    //     };
 
-        let res = execute
-            .downcast::<Vec<QueryResult>>()
-            .map_err(|err| anyhow!("Cannot downcast to MySQL query result. {:?}", err))?;
+    //     let res = execute
+    //         .downcast::<Vec<QueryResult>>()
+    //         .map_err(|err| anyhow!("Cannot downcast to MySQL query result. {:?}", err))?;
 
-        for entry in *res {
-            if let Ok(query) = entry.try_get::<String>("", "execute") {
-                db_conn.execute(DatabaseInput::Query(query.into())).await?;
-            }
-        }
-    }
+    //     for entry in *res {
+    //         if let Ok(query) = entry.try_get::<String>("", "execute") {
+    //             db_conn.execute(DatabaseInput::Query(query.into())).await?;
+    //         }
+    //     }
+    // }
 
     let mut statements = statements.into_iter();
 
