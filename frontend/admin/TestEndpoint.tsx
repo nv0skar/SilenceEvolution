@@ -187,7 +187,7 @@ export default (_: RouteSectionProps) => {
 
         set_response({
             time: res.headers.get("Date")!,
-            body: JSON.stringify(body),
+            body: JSON.stringify(body, null, "\t"),
         });
     };
 
@@ -204,7 +204,7 @@ export default (_: RouteSectionProps) => {
                 fromEntries,
             );
 
-            return JSON.stringify(skeleton);
+            return JSON.stringify(skeleton, null, "\t");
         } else {
             return "{}";
         }
@@ -423,7 +423,7 @@ export default (_: RouteSectionProps) => {
                                     <textarea
                                         id="body"
                                         name="body"
-                                        class="bg-transparent p-3 border text-transparent col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
+                                        class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
                                         spellcheck="false"
                                         onKeyDown={(event) => {
                                             let target = event.currentTarget;
@@ -485,12 +485,12 @@ export default (_: RouteSectionProps) => {
                         </button>
                     </div>
                     <Show when={response() !== undefined}>
-                        <div class="bg-base-100/25 border border-base-300 backdrop-blur shadow-xl rounded-box my-2 p-2">
+                        <div class="bg-base-100/25 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96 backdrop-blur shadow-xl rounded-box my-2 p-2">
                             <span class="text-xs">
                                 Response at {response()!.time}
                             </span>
                             <p
-                                class="text-sm font-semibold"
+                                class="text-sm font-semibold whitespace-pre-wrap"
                                 ref={response_body_element}
                             ></p>
                         </div>

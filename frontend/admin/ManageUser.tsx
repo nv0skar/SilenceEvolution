@@ -3,6 +3,8 @@
 
 import { UsersContext } from "./Users";
 
+import { confirm_btn } from "./Components/Button";
+
 import { createSignal, Show, useContext } from "solid-js";
 
 import {
@@ -220,19 +222,7 @@ export default (_: RouteSectionProps) => {
                             hidden: user_data === undefined,
                         }}
                         data-confirmed={false}
-                        onClick={async (event) => {
-                            let button = event.currentTarget;
-
-                            if (
-                                button.getAttribute("data-confirmed")! ===
-                                "true"
-                            ) {
-                                await delete_user();
-                            } else {
-                                button.setAttribute("data-confirmed", "true");
-                                button.innerText = "Are you sure?";
-                            }
-                        }}
+                        onClick={confirm_btn(delete_user)}
                     >
                         Delete user
                     </button>
@@ -243,7 +233,8 @@ export default (_: RouteSectionProps) => {
                         classList={{
                             "btn-disabled": user_data === undefined,
                         }}
-                        onClick={submit_user}
+                        data-confirmed={false}
+                        onClick={confirm_btn(submit_user)}
                     >
                         {user_data ? "Update" : "Create user"}
                     </button>

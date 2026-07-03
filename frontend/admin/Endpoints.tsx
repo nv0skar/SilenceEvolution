@@ -243,7 +243,7 @@ export default (props: RouteSectionProps) => {
                         >
                             <div
                                 id="modal"
-                                class="relative lg:m-32 w-full h-fit px-4 bg-base-100/50 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-300"
+                                class="relative lg:m-32 w-full min-h-fit max-h-screen px-4 bg-base-100/75 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-300"
                                 classList={{
                                     "opacity-0 scale-75":
                                         resolved_children() === undefined,

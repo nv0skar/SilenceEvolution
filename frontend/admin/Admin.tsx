@@ -90,7 +90,7 @@ export default (props: RouteSectionProps) => {
 
     return (
         <>
-            <div class="drawer lg:drawer-open [&_input]:rounded-2xl [&_input]:bg-base-100/25 [&_textarea]:rounded-2xl">
+            <div class="drawer lg:drawer-open [&_input]:rounded-2xl [&_input]:bg-base-100/75 [&_input]:backdrop-brightness-125 [&_input]:backdrop-blur-xs [&_textarea]:rounded-2xl">
                 <input id="app-drawer" type="checkbox" class="drawer-toggle" />
                 <div class="drawer-content flex flex-col">
                     <nav>

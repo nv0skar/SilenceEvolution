@@ -4,6 +4,8 @@
 import { type EndpointStruct } from "./Endpoint";
 import { EndpointsContext } from "./Endpoints";
 
+import { confirm_btn } from "./Components/Button";
+
 import {
     createEffect,
     createResource,
@@ -296,7 +298,7 @@ export default (_: RouteSectionProps) => {
                                     <textarea
                                         id="query"
                                         name="query"
-                                        class="bg-transparent p-3 border text-transparent col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
+                                        class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
                                         spellcheck="false"
                                         value={
                                             endpoint_data
@@ -461,27 +463,12 @@ export default (_: RouteSectionProps) => {
                     <div class="flex gap-2 [&_button]:rounded-xl [&_button]:hover:shadow">
                         <button
                             id="delete_endpoint"
-                            class="btn btn-active bg-red-600 text-white max-h-full"
+                            class="btn btn-active bg-red-600 text-white"
                             classList={{
                                 hidden: endpoint_data === undefined,
                             }}
                             data-confirmed={false}
-                            onClick={async (event) => {
-                                let button = event.currentTarget;
-
-                                if (
-                                    button.getAttribute("data-confirmed")! ===
-                                    "true"
-                                ) {
-                                    await delete_endpoint();
-                                } else {
-                                    button.setAttribute(
-                                        "data-confirmed",
-                                        "true",
-                                    );
-                                    button.innerText = "Are you sure?";
-                                }
-                            }}
+                            onClick={confirm_btn(delete_endpoint)}
                         >
                             Delete endpoint
                         </button>
@@ -492,7 +479,8 @@ export default (_: RouteSectionProps) => {
                             classList={{
                                 "btn-disabled": endpoint_data === undefined,
                             }}
-                            onClick={submit_endpoint}
+                            data-confirmed={false}
+                            onClick={confirm_btn(submit_endpoint)}
                         >
                             {endpoint_data ? "Update" : "Create endpoint"}
                         </button>
