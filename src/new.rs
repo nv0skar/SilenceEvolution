@@ -7,6 +7,7 @@ use databases::*;
 
 #[allow(warnings)]
 use sea_orm::QueryResult;
+use waveless_commons::project::AnyDatabaseConnectionConfig;
 
 /// TODO: add docs here.
 #[derive(Clone, RustEmbed, Debug)]
@@ -14,7 +15,7 @@ use sea_orm::QueryResult;
 pub struct NewMigrations;
 
 // Runs database's migrations.
-pub async fn run_migrations(_internal_db_name: Option<CompactString>) -> Result<()> {
+pub async fn run_migrations(internal_db_name: Option<CompactString>) -> Result<()> {
     let db_conns = DATABASES_CONNS.get().unwrap().to_owned();
 
     let _main_db_conn = db_conns
@@ -23,7 +24,7 @@ pub async fn run_migrations(_internal_db_name: Option<CompactString>) -> Result<
         .downcast::<mysql::MySQLConnection>()
         .unwrap();
 
-    let db_conn = match _internal_db_name {
+    let db_conn = match internal_db_name {
         Some(_) => db_conns
             .search(Some("internal".into()))?
             .into_arc_any()
@@ -60,6 +61,30 @@ pub async fn run_migrations(_internal_db_name: Option<CompactString>) -> Result<
     Ok(())
 }
 
+// Creates internal database.
+pub async fn create_internal_db(
+    db_conn_config: &mysql::MySQLDBConnectionConfig,
+    internal_db_name: Option<CompactString>,
+) -> Result<()> {
+    let internal_db_name = internal_db_name.unwrap_or("silence".into());
+
+    let (any_db_conn, _) = db_conn_config.new_conn("main".into(), None, None).await?;
+
+    let db_conn = any_db_conn
+        .into_arc_any()
+        .downcast::<mysql::MySQLConnection>()
+        .unwrap();
+
+    debug!("Creating internal database `{}`.", internal_db_name);
+
+    db_conn
+        .execute(DatabaseInput::Query(
+            format!("CREATE DATABASE IF NOT EXISTS {}", internal_db_name).into(),
+        ))
+        .await?;
+    Ok(())
+}
+
 /// Create a new project in the current dir with the specified settings.
 pub async fn new_project(
     name: CompactString,
@@ -68,6 +93,7 @@ pub async fn new_project(
     internal_db_name: Option<CompactString>,
     db_user: Option<CompactString>,
     db_password: Option<CompactString>,
+    skip_internal_db: bool,
     prefer_web_directory: bool,
 ) -> Result<CompactString> {
     // Create a new Silence project.
@@ -83,13 +109,15 @@ pub async fn new_project(
                 db_name.to_owned(),
             ),
             match &internal_db_name {
-                Some(internal_db_name) => Some(mysql::MySQLDBConnectionConfig::new(
-                    db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
-                    db_user,
-                    db_password,
-                    internal_db_name.to_owned(),
-                )),
-                None => None,
+                Some(internal_db_name) if !skip_internal_db => {
+                    Some(mysql::MySQLDBConnectionConfig::new(
+                        db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+                        db_user,
+                        db_password,
+                        internal_db_name.to_owned(),
+                    ))
+                }
+                _ => None,
             },
         );
 

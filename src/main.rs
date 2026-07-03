@@ -5,7 +5,7 @@ use silence::*;
 
 use silence::internal_endpoints::mysql_proxy::*;
 
-use waveless_commons::{databases::*, project::AnyDatabaseConnectionConfig, *};
+use waveless_commons::{databases::*, *};
 use waveless_executor::*;
 
 use execute::mysql::*;
@@ -85,7 +85,10 @@ nest! {
                     #[arg(short = 'p', long = "db_password", help = "Database's password.")]
                     db_password: Option<CompactString>,
 
-                    #[arg(long = "prefer_web_directory", help = "Database's password.", default_value_t = true)]
+                    #[arg(long = "skip_internal_db", default_value_t = false)]
+                    skip_internal_db: bool,
+
+                    #[arg(long = "prefer_web_directory", default_value_t = true)]
                     prefer_web_directory: bool,
                 },
 
@@ -117,32 +120,20 @@ async fn try_main() -> Result<ResultContext> {
             match app_cx {
                 Some(_app_cx) => {
                     // Create internal database if necessary.
-                    let _internal_db_name =
+                    let internal_db_name =
                         match _app_cx.config().read().await.databases_conn().internal() {
                             Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
                             None => None,
                         };
 
-                    if let Some(internal_db_name) = &_internal_db_name {
+                    if let Some(internal_db_name) = &internal_db_name {
                         let config = _app_cx.config().read().await;
 
-                        let (any_db_conn, _) = config
-                            .databases_conn()
-                            .main()
-                            .new_conn("main".into(), None, None)
-                            .await?;
-
-                        let db_conn = any_db_conn
-                            .into_arc_any()
-                            .downcast::<mysql::MySQLConnection>()
-                            .unwrap();
-
-                        db_conn
-                            .execute(DatabaseInput::Query(
-                                format!("CREATE DATABASE IF NOT EXISTS {}", internal_db_name)
-                                    .into(),
-                            ))
-                            .await?;
+                        create_internal_db(
+                            config.databases_conn().main(),
+                            Some(internal_db_name.to_owned()),
+                        )
+                        .await?;
                     }
 
                     // Load the Silence's app's database into the databases manager (`waveless_commons::databases::DatabasesConnections`).
@@ -152,7 +143,7 @@ async fn try_main() -> Result<ResultContext> {
                     .await?;
 
                     // Run database migrations.
-                    run_migrations(_internal_db_name).await?;
+                    run_migrations(internal_db_name).await?;
 
                     // Set App's CX globally.
                     _app_cx.set_global_cx().await?;
@@ -347,8 +338,27 @@ async fn try_main() -> Result<ResultContext> {
             internal_db_name,
             db_user,
             db_password,
+            skip_internal_db,
             prefer_web_directory,
         }) => {
+            // Create internal database if necessary.
+            if !skip_internal_db {
+                if let (Some(db_name), Some(db_user), Some(db_password)) = (
+                    db_name.to_owned(),
+                    db_user.to_owned(),
+                    db_password.to_owned(),
+                ) {
+                    let db_conn_config = mysql::MySQLDBConnectionConfig::new(
+                        db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+                        db_user,
+                        db_password,
+                        db_name,
+                    );
+
+                    create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
+                }
+            }
+
             new_project(
                 name,
                 db_host,
@@ -356,6 +366,7 @@ async fn try_main() -> Result<ResultContext> {
                 internal_db_name,
                 db_user,
                 db_password,
+                skip_internal_db,
                 prefer_web_directory,
             )
             .await
@@ -369,16 +380,26 @@ async fn try_main() -> Result<ResultContext> {
                 ));
             };
 
+            // Create internal database if necessary.
+            let internal_db_name = match app_cx.config().read().await.databases_conn().internal() {
+                Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
+                None => None,
+            };
+
+            if let Some(internal_db_name) = &internal_db_name {
+                let config = app_cx.config().read().await;
+
+                create_internal_db(
+                    config.databases_conn().main(),
+                    Some(internal_db_name.to_owned()),
+                )
+                .await?;
+            }
+
             DatabasesConnections::load(app_cx.config().read().await.into_database_config()).await?;
 
             run_migrations(
-                match AppCx::acquire()
-                    .config()
-                    .read()
-                    .await
-                    .databases_conn()
-                    .internal()
-                {
+                match app_cx.config().read().await.databases_conn().internal() {
                     Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
                     None => None,
                 },
