@@ -254,7 +254,7 @@ export default (props: RouteSectionProps) => {
                             >
                                 <div class="absolute top-0 right-0 m-2 z-50">
                                     <button
-                                        class="btn btn-circle bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200"
+                                        class="btn btn-circle tooltip tooltip-left bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200"
                                         classList={{
                                             hidden: params["id"] === undefined,
                                         }}
@@ -271,6 +271,11 @@ export default (props: RouteSectionProps) => {
                                                 },
                                             );
                                         }}
+                                        data-tip={
+                                            location.pathname.includes("modify")
+                                                ? "Test endpoint"
+                                                : "Modify endpoint"
+                                        }
                                     >
                                         <span class="material-symbols-outlined">
                                             {location.pathname.includes(
@@ -491,13 +496,13 @@ export default (props: RouteSectionProps) => {
                                             </div>
                                             <ul
                                                 id={`endpoint-row-${ix}-dropdown`}
-                                                class="dropdown menu w-52 rounded-box bg-base-100/25 border-base-200 border backdrop-blur-sm shadow-lg opacity-0 [&:popover-open]:opacity-100 starting:opacity-0 transition-all transition-discrete duration-200"
+                                                class="dropdown menu w-1/4 rounded-box bg-base-200/25 border-base-300 border backdrop-blur-sm backdrop-brightness-110 shadow-lg opacity-0 [&:popover-open]:opacity-100 starting:opacity-0 transition-all transition-discrete duration-200"
                                                 classList={{
                                                     hidden:
                                                         resolved_children() !==
                                                         undefined,
                                                 }}
-                                                style={`position-anchor:--endpoint-row-${ix}; inset: auto; top: anchor(bottom); left: anchor(left); margin: 0;`}
+                                                style={`position-anchor:--endpoint-row-${ix}; inset: auto; top: anchor(bottom); left: anchor(left); margin: 0.5rem;`}
                                                 onClick={(event) =>
                                                     (
                                                         event.currentTarget as HTMLUListElement
