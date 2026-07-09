@@ -34,17 +34,6 @@ export const EndpointsContext = createContext<{
     }>;
     refetch_endpoints: Function;
 }>();
-
-const REDUCED_FIELDS: Array<keyof EndpointStruct> = [
-    "id",
-    "version",
-    "route",
-    "method",
-    "body_params",
-    "allowed_roles",
-    "require_auth",
-];
-
 export default (props: RouteSectionProps) => {
     const session_context = useContext(SessionContext);
 
@@ -88,16 +77,18 @@ export default (props: RouteSectionProps) => {
                             path: endpoints_path[0] as string | null,
                             endpoint: {
                                 id: endpoint.id,
+                                database: endpoint.database,
                                 route: endpoint.route,
-                                description: endpoint.description,
                                 version: endpoint.version,
                                 method: endpoint.method.toUpperCase(),
+                                execute: endpoint.execute,
                                 query_params: endpoint.query_params,
                                 body_params: endpoint.body_params,
-                                query: endpoint.query,
+                                description: endpoint.description,
                                 require_auth: endpoint.require_auth,
                                 allowed_roles: endpoint.allowed_roles,
-                                inject_user_id: endpoint.inject_user_id,
+                                inject_auth_metadata:
+                                    endpoint.inject_auth_metadata,
                                 auto_generated: endpoint.auto_generated,
                             } as EndpointStruct,
                         });
@@ -177,7 +168,7 @@ export default (props: RouteSectionProps) => {
             default: {
                 return (
                     <span>
-                        {value ? (value as Array<string>).join(", ") : "—"}
+                        {/*{value ? (value as Array<string>).join(", ") : "—"}*/}
                     </span>
                 ) as Element;
             }
@@ -348,7 +339,7 @@ export default (props: RouteSectionProps) => {
                                             "hidden!": !get_full_data(),
                                         }}
                                     >
-                                        Query
+                                        Queries
                                     </div>
                                     <div class="table-cell">Requires auth</div>
                                     <div
@@ -365,7 +356,7 @@ export default (props: RouteSectionProps) => {
                                             "hidden!": !get_full_data(),
                                         }}
                                     >
-                                        Injects user id
+                                        Injects auth metadata
                                     </div>
                                     <div
                                         class="table-cell"
@@ -385,7 +376,7 @@ export default (props: RouteSectionProps) => {
                                     </div>
                                 </div>
                             </div>
-                            <div class="table-row-group [&>div:nth-of-type(even)]:bg-base-200 [&>div]:hover:bg-base-300! [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
+                            <div class="table-row-group [&>div:nth-of-type(even)]:bg-base-200 [&>div]:hover:bg-base-300/80! [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
                                 <Index
                                     each={endpoints()?.sort(
                                         (endpoint_pair_1, endpoint_pair_2) => {
@@ -399,8 +390,8 @@ export default (props: RouteSectionProps) => {
                                         <Show
                                             when={
                                                 get_full_data() ||
-                                                (endpoint().endpoint.query! !==
-                                                    null &&
+                                                (endpoint().endpoint
+                                                    .execute! !== null &&
                                                     !endpoint().endpoint.version?.includes(
                                                         "internal",
                                                     ))
@@ -453,39 +444,194 @@ export default (props: RouteSectionProps) => {
                                                 <div class="table-cell font-light pl-8! align-middle">
                                                     {ix}
                                                 </div>
-                                                <Index
-                                                    each={Object.entries(
-                                                        endpoint()
-                                                            .endpoint as EndpointStruct,
-                                                    )}
-                                                >
-                                                    {(field, ix) => (
-                                                        <>
-                                                            <div
-                                                                class="table-cell"
-                                                                classList={{
-                                                                    "hidden!":
-                                                                        !REDUCED_FIELDS.includes(
-                                                                            field()[0] as keyof EndpointStruct,
-                                                                        ) &&
-                                                                        !get_full_data(),
-                                                                }}
-                                                            >
-                                                                {
-                                                                    // @ts-ignore
-                                                                    (): Element => {
-                                                                        return render_field(
-                                                                            field,
-                                                                            ix,
-                                                                        );
-                                                                    }
-                                                                }
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </Index>
+                                                <div class="table-cell font-black">
+                                                    {endpoint().endpoint.id}
+                                                </div>
+                                                <div class="table-cell font-mono">
+                                                    {endpoint().endpoint.route}
+                                                </div>
                                                 <div
-                                                    class="table-cell font-light pr-4!"
+                                                    class="table-cell"
+                                                    classList={{
+                                                        "hidden!":
+                                                            !get_full_data(),
+                                                    }}
+                                                >
+                                                    {endpoint().endpoint
+                                                        .description ?? "—"}
+                                                </div>
+                                                <div class="table-cell font-mono">
+                                                    {
+                                                        endpoint().endpoint
+                                                            .version
+                                                    }
+                                                </div>
+                                                <div
+                                                    class="table-cell text-cyan-500"
+                                                    classList={{
+                                                        "text-green-500!":
+                                                            endpoint()
+                                                                .endpoint.method.toLowerCase()
+                                                                .includes(
+                                                                    "get",
+                                                                ),
+                                                        "text-red-500!":
+                                                            endpoint()
+                                                                .endpoint.method.toLowerCase()
+                                                                .includes(
+                                                                    "delete",
+                                                                ),
+                                                    }}
+                                                >
+                                                    {endpoint().endpoint.method}
+                                                </div>
+                                                <div
+                                                    class="table-cell font-mono"
+                                                    classList={{
+                                                        "hidden!":
+                                                            !get_full_data(),
+                                                    }}
+                                                >
+                                                    {endpoint().endpoint
+                                                        .query_params
+                                                        ? endpoint().endpoint.query_params.join(
+                                                              ", ",
+                                                          )
+                                                        : "—"}
+                                                </div>
+                                                <div class="table-cell font-mono">
+                                                    {endpoint().endpoint
+                                                        .body_params
+                                                        ? endpoint().endpoint.body_params.join(
+                                                              ", ",
+                                                          )
+                                                        : "—"}
+                                                </div>
+                                                <div
+                                                    class="table-cell"
+                                                    classList={{
+                                                        "hidden!":
+                                                            !get_full_data(),
+                                                    }}
+                                                >
+                                                    {
+                                                        // @ts-ignore
+                                                        (): Element => {
+                                                            const [
+                                                                formatted_sql,
+                                                                set_formatted_sql,
+                                                            ] =
+                                                                createSignal<string>(
+                                                                    "—",
+                                                                );
+
+                                                            createEffect(
+                                                                async () => {
+                                                                    set_formatted_sql(
+                                                                        await sql_grammar()?.highlight(
+                                                                            endpoint()
+                                                                                .endpoint
+                                                                                .execute !==
+                                                                                null
+                                                                                ? endpoint()
+                                                                                      .endpoint.execute!.queries.map(
+                                                                                          (
+                                                                                              query,
+                                                                                          ) =>
+                                                                                              query.query,
+                                                                                      )
+                                                                                      .join(
+                                                                                          ";\n",
+                                                                                      )
+                                                                                : "—",
+                                                                        )!,
+                                                                    );
+                                                                },
+                                                            );
+
+                                                            return (
+                                                                <>
+                                                                    <Show
+                                                                        when={
+                                                                            !sql_grammar.loading &&
+                                                                            formatted_sql() !==
+                                                                                undefined
+                                                                        }
+                                                                    >
+                                                                        <span
+                                                                            class="font-mono"
+                                                                            innerHTML={
+                                                                                formatted_sql() as string
+                                                                            }
+                                                                        ></span>
+                                                                    </Show>
+                                                                </>
+                                                            ) as Element;
+                                                        }
+                                                    }
+                                                </div>
+                                                <div
+                                                    class="table-cell"
+                                                    classList={{
+                                                        "text-success":
+                                                            endpoint().endpoint
+                                                                .inject_auth_metadata,
+                                                        "text-error":
+                                                            !endpoint().endpoint
+                                                                .inject_auth_metadata,
+                                                    }}
+                                                >
+                                                    {endpoint().endpoint
+                                                        .require_auth
+                                                        ? "Yes"
+                                                        : "No"}
+                                                </div>
+                                                <div class="table-cell font-mono">
+                                                    {endpoint().endpoint
+                                                        .allowed_roles
+                                                        ? endpoint().endpoint.allowed_roles.join(
+                                                              ", ",
+                                                          )
+                                                        : "—"}
+                                                </div>
+                                                <div
+                                                    class="table-cell"
+                                                    classList={{
+                                                        "hidden!":
+                                                            !get_full_data(),
+                                                        "text-success":
+                                                            endpoint().endpoint
+                                                                .inject_auth_metadata,
+                                                        "text-error":
+                                                            !endpoint().endpoint
+                                                                .inject_auth_metadata,
+                                                    }}
+                                                >
+                                                    {endpoint().endpoint
+                                                        .inject_auth_metadata
+                                                        ? "Yes"
+                                                        : "No"}
+                                                </div>
+                                                <div
+                                                    class="table-cell"
+                                                    classList={{
+                                                        "hidden!":
+                                                            !get_full_data(),
+                                                        "text-success":
+                                                            endpoint().endpoint
+                                                                .auto_generated,
+                                                        "text-error":
+                                                            !endpoint().endpoint
+                                                                .auto_generated,
+                                                    }}
+                                                >
+                                                    {endpoint().endpoint
+                                                        .auto_generated
+                                                        ? "Yes"
+                                                        : "No"}
+                                                </div>
+                                                <div
+                                                    class="table-cell font-mono pr-4!"
                                                     classList={{
                                                         "hidden!":
                                                             !get_full_data(),
@@ -502,7 +648,7 @@ export default (props: RouteSectionProps) => {
                                                         resolved_children() !==
                                                         undefined,
                                                 }}
-                                                style={`position-anchor:--endpoint-row-${ix}; inset: auto; top: anchor(bottom); left: anchor(left); margin: 0.5rem;`}
+                                                style={`position-anchor:--endpoint-row-${ix}; inset: auto; align-self: anchor-center; justify-self: anchor-left; margin: 0.5rem;`}
                                                 onClick={(event) =>
                                                     (
                                                         event.currentTarget as HTMLUListElement

@@ -27,7 +27,6 @@ use config::*;
 use waveless_compiler::{COMPILER_CX, CompilerCx, discovery::*};
 
 pub type SimpleEndpointsByFile = CheapVec<(Option<PathBuf>, CheapVec<SimpleEndpoint>)>;
-
 #[derive(Constructor, Getters, Debug)]
 #[getset(get = "pub")]
 pub struct AppCx {
@@ -232,7 +231,7 @@ impl AppCx {
         }
     }
 
-    /// Recursively walk through all subfolders in t he project's endpoints folder.
+    /// Recursively walk through all subfolders in the project's endpoints folder.
     fn walk_simple_endpoints_files(
         dir: PathBuf,
     ) -> BoxFuture<'static, Result<SimpleEndpointsByFile>> {
@@ -392,7 +391,11 @@ impl AppCx {
                 .endpoints()
                 .inner()
                 .iter()
-                .filter(|endpoint| *endpoint.auto_generated())
+                .filter(|endpoint| match endpoint.target() {
+                    Targets::HttpTarget(http_target) => *http_target.auto_generated(),
+                    Targets::SocketTarget(_) => false,
+                })
+                .cloned()
                 .map(|endpoint| endpoint.into())
                 .collect::<CheapVec<SimpleEndpoint>>();
 
@@ -543,6 +546,11 @@ impl AppCx {
             bail!("Couldn't find a loaded endpoint with the id {}", id);
         };
 
+        let auto_generated = match endpoint.target() {
+            Targets::HttpTarget(http_target) => *http_target.auto_generated(),
+            Targets::SocketTarget(_) => false,
+        };
+
         // Check whether an internal endpoint is being removed.
         if is_endpoint_internal(&endpoint) {
             bail!("Cannot remove internal endpoint `{}`.", id);
@@ -556,7 +564,7 @@ impl AppCx {
         // If the endpoint is auto-generated, the specific endpoint id will be skipped in subsequent endpoint discoveries.
         // Beware that by definition, the whole table isn't skipped only that specific endpoint.
         // Otherwise, if the endpoint is user-generated remove the endpoint from it's definition file.
-        if *endpoint.auto_generated() {
+        if auto_generated {
             let mut _config_guard = Self::acquire().config().write().await;
             _config_guard
                 .skip_endpoints_ids_mut()
@@ -566,9 +574,9 @@ impl AppCx {
             let mut simple_endpoint_by_files =
                 Self::acquire().simple_endpoints_by_file.write().await;
 
-            for (target_path_iter, simple_endpoints) in simple_endpoint_by_files.iter_mut() {
+            for (target_path_iter, endpoints) in simple_endpoint_by_files.iter_mut() {
                 if let Some(target_path_iter) = target_path_iter {
-                    let Some((ix, _)) = simple_endpoints
+                    let Some((ix, _)) = endpoints
                         .iter()
                         .enumerate()
                         .find(|(_, endpoint)| *endpoint.id() == id)
@@ -576,7 +584,7 @@ impl AppCx {
                         continue;
                     };
 
-                    simple_endpoints.remove(ix);
+                    endpoints.remove(ix);
 
                     target_path = Some(target_path_iter.to_owned());
 
@@ -596,7 +604,7 @@ impl AppCx {
 
         // If the endpoint was auto-generated it means that the app's config has been modified,
         // we have to set the config (cannot be done before because the lock is held by `build`).
-        if *endpoint.auto_generated() {
+        if auto_generated {
             AppCx::acquire().set_config().await?;
         }
 

@@ -5,10 +5,10 @@ use silence::*;
 
 use silence::internal_endpoints::mysql_proxy::*;
 
-use waveless_commons::{databases::*, *};
+use waveless_commons::{databases::*, endpoint::*, *};
 use waveless_executor::*;
 
-use execute::mysql::*;
+use http_execute::mysql::*;
 use logging::*;
 use runtime::handle_main;
 
@@ -191,7 +191,7 @@ async fn try_main() -> Result<ResultContext> {
                                     }
                                     #(
                                         {
-                                            const COLUMNS: &[&str] = &["Method", "Route", "Query", "Requires auth", "Injects user id", "Allowed Roles", "Auto Generated"];
+                                            const COLUMNS: &[&str] = &["Method", "Route", "Query", "Requires auth", "Injects auth metadata", "Allowed Roles", "Auto Generated"];
 
                                             COLUMNS.iter().map(|column| element! {
                                                 View(width: 250pct) {
@@ -203,56 +203,73 @@ async fn try_main() -> Result<ResultContext> {
                                 }
 
                                 #(endpoints.iter().enumerate().map(|(i, endpoint)| element! {
-                                    View(background_color: if i % 2 == 0 { None } else { Some(Color::DarkGrey) }) {
+                                    View(background_color: if i % 2 == 0 { None } else { Some(Color::Rgb { r: 20, g: 20, b: 20 }) }) {
                                         View(width: 200pct, justify_content: JustifyContent::End, padding_right: 2) {
-                                            Text(content: endpoint.id().to_string(), weight: Weight::Bold)
-                                        }
-                                        View(width: 250pct) {
-                                            Text(content: endpoint.method().to_string())
-                                        }
-                                        View(width: 250pct) {
-                                            Text(content: format!("api/{}{}", endpoint.version().to_owned().map(|path| format!("{}/", path.trim_matches('/'))).unwrap_or_default(), endpoint.route().to_string().trim_matches('/')))
+                                            Text(content: endpoint.id().to_string(), color: Color::Green, weight: Weight::Bold)
                                         }
                                         View(width: 250pct) {
                                             #(
-                                                if let Some(execute) = endpoint
-                                                    .execute()
-                                                    .to_owned()
-                                                    .map(|execute| {
-                                                        execute
-                                                            .into_arc_any()
-                                                            .downcast::<MySQLExecute>()
-                                                            .ok()
-                                                    })
-                                                    .flatten()
-                                                {
-                                                    element! {
-                                                        View {
-                                                            Text(content: execute.query().to_string())
+                                                match endpoint.target() {
+                                                    Targets::HttpTarget(http_target) => element! {
+                                                        Text(content: http_target.method().to_string())
+                                                    },
+                                                    _ => element! {
+                                                        Text(content: "—")
+                                                    },
+                                                }
+                                            )
+                                        }
+                                        View(width: 250pct) {
+                                            #(
+                                                match endpoint.target() {
+                                                    Targets::HttpTarget(http_target) => element! {
+                                                        Text(content: format!("api/{}{}", http_target.version().to_owned().map(|path| format!("{}/", path.trim_matches('/'))).unwrap_or_default(), http_target.route().to_string().trim_matches('/')))
+                                                    },
+                                                    _ => element! {
+                                                        Text(content: "—")
+                                                    },
+                                                }
+                                            )
+                                        }
+                                        View(width: 250pct) {
+                                            #(
+                                                match endpoint.target() {
+                                                    Targets::HttpTarget(http_target) => {
+                                                        match (
+                                                            http_target
+                                                                .execute()
+                                                                .to_owned()
+                                                                .map(|execute| execute.into_arc_any().downcast::<MySQLExecute>().ok())
+                                                                .flatten(),
+                                                            http_target
+                                                                .execute()
+                                                                .to_owned()
+                                                                .map(|execute| execute.into_arc_any().downcast::<MySQLExecuteProxy>().ok())
+                                                                .flatten()
+                                                        ) {
+                                                            (Some(execute), None) => element! {
+                                                                View {
+                                                                    Text(content: format!("{:?}", execute))
+                                                                }
+                                                            },
+                                                            (None, Some(execute)) => element! {
+                                                                View(flex_direction: FlexDirection::Column) {
+                                                                    Text(content: format!("{:?}", execute))
+                                                                    Text(content: "(runtime parameters injected)", color: Color::DarkRed)
+                                                                }
+                                                            },
+                                                            _ => element! {
+                                                                View {
+                                                                        Text(content: "Internal", color: Color::Blue)
+                                                                }
+                                                            },
                                                         }
-                                                    }
-                                                } else if let Some(execute) = endpoint
-                                                    .execute()
-                                                    .to_owned()
-                                                    .map(|execute| {
-                                                        execute
-                                                            .into_arc_any()
-                                                            .downcast::<MySQLExecuteProxy>()
-                                                            .ok()
-                                                    })
-                                                    .flatten() {
-                                                    element! {
+                                                    },
+                                                    _ => element! {
                                                         View {
-                                                            Text(content: execute.queries().join("; "), color: Color::Blue)
-                                                            Text(content: "(runtime parameters injected)", color: Color::DarkRed)
+                                                            Text(content: "Socket", color: Color::Blue)
                                                         }
-                                                    }
-                                                } else {
-                                                    element! {
-                                                        View {
-                                                                Text(content: "Internal", color: Color::Blue)
-                                                        }
-                                                    }
+                                                    },
                                                 }
                                             )
                                         }
@@ -260,7 +277,7 @@ async fn try_main() -> Result<ResultContext> {
                                             #(print_bool!(*endpoint.require_auth()))
                                         }
                                         View(width: 250pct) {
-                                            #(print_bool!(*endpoint.inject_user_id()))
+                                            #(print_bool!(*endpoint.inject_auth_metadata()))
                                         }
                                         View(width: 250pct) {
                                             Text(content: if !endpoint.allowed_roles().is_empty() {
@@ -274,7 +291,12 @@ async fn try_main() -> Result<ResultContext> {
                                             })
                                         }
                                         View(width: 250pct) {
-                                            #(print_bool!(*endpoint.auto_generated()))
+                                            #(match endpoint.target() {
+                                                Targets::HttpTarget(http_target) => print_bool!(*http_target.auto_generated()),
+                                                _ => element! {
+                                                    Text(content: "—")
+                                                },
+                                            })
                                         }
                                     }
                                 }))
@@ -317,7 +339,8 @@ async fn try_main() -> Result<ResultContext> {
                             Some(addr) => Some(addr.to_owned()),
                             None => addr,
                         },
-                        BoxCloneService::new(StaticService),
+                        None,
+                        Some(BoxCloneService::new(StaticService)),
                     )
                     .await?;
                 }

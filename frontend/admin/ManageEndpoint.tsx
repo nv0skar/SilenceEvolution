@@ -47,10 +47,13 @@ export default (_: RouteSectionProps) => {
 
         const req = {
             id: form_data["id"]?.toString(),
+            database: form_data["database"]?.toString(),
             route: form_data["route"]?.toString(),
-            description: form_data["description"]?.toString(),
             version: form_data["version"]?.toString(),
             method: form_data["method"]?.toString().toLowerCase(),
+            execute: {
+                query: form_data["query"]?.toString(),
+            },
             query_params: Array.from(
                 (form_data["query_params"]?.toString() as string)
                     .replaceAll(" ", "")
@@ -63,17 +66,19 @@ export default (_: RouteSectionProps) => {
                     .split(",")
                     .filter((val) => val.length !== 0),
             ),
-            query: form_data["query"]?.toString(),
+            description: form_data["description"]?.toString(),
             require_auth:
                 form_data["require_auth"]?.toString() == "on" ? true : false,
+            inject_auth_metadata:
+                form_data["inject_auth_metadata"]?.toString() == "on"
+                    ? true
+                    : false,
             allowed_roles: Array.from(
                 (form_data["allowed_roles"]?.toString() as string)
                     .replaceAll(" ", "")
                     .split(",")
                     .filter((val) => val.length !== 0),
             ),
-            inject_user_id:
-                form_data["inject_user_id"]?.toString() == "on" ? true : false,
             auto_generated:
                 form_data["auto_generated"]?.toString() == "on" ? true : false,
         } as EndpointStruct;
@@ -160,7 +165,11 @@ export default (_: RouteSectionProps) => {
 
     createEffect(async () => {
         if (endpoint_data !== undefined)
-            format_sql(endpoint_data.endpoint.query ?? "");
+            format_sql(
+                endpoint_data.endpoint.execute
+                    ?.queries!.map((mysql_query) => mysql_query.query)
+                    .join("; ") ?? "",
+            );
     });
 
     return (
@@ -176,7 +185,7 @@ export default (_: RouteSectionProps) => {
                 <Show
                     when={
                         endpoint_data === undefined ||
-                        endpoint_data.endpoint.query !== null ||
+                        endpoint_data.endpoint.execute !== null ||
                         !endpoint_data.endpoint.version?.includes("internal")
                     }
                     fallback={
@@ -233,7 +242,7 @@ export default (_: RouteSectionProps) => {
                                 <input
                                     name="route"
                                     type="text"
-                                    class="input"
+                                    class="input font-mono"
                                     value={
                                         endpoint_data
                                             ? endpoint_data.endpoint.route
@@ -267,7 +276,7 @@ export default (_: RouteSectionProps) => {
                                 <input
                                     name="body_params"
                                     type="text"
-                                    class="input peer"
+                                    class="input peer font-mono"
                                     value={
                                         endpoint_data
                                             ? (
@@ -302,8 +311,15 @@ export default (_: RouteSectionProps) => {
                                         spellcheck="false"
                                         value={
                                             endpoint_data
-                                                ? (endpoint_data.endpoint
-                                                      .query ?? "")
+                                                ? endpoint_data.endpoint
+                                                      .execute !== undefined
+                                                    ? endpoint_data.endpoint
+                                                          .execute!.queries!.map(
+                                                              (mysql_query) =>
+                                                                  mysql_query.query,
+                                                          )
+                                                          .join("; ")
+                                                    : "Internal"
                                                 : ""
                                         }
                                         placeholder="Query"
@@ -329,7 +345,7 @@ export default (_: RouteSectionProps) => {
                                         <input
                                             name="version"
                                             type="text"
-                                            class="input"
+                                            class="input font-mono"
                                             value={!endpoint_data ? "v1" : ""}
                                             placeholder={
                                                 endpoint_data
@@ -361,7 +377,7 @@ export default (_: RouteSectionProps) => {
                                         <input
                                             name="query_params"
                                             type="text"
-                                            class="input peer"
+                                            class="input peer font-mono"
                                             value={
                                                 endpoint_data
                                                     ? (
@@ -388,7 +404,7 @@ export default (_: RouteSectionProps) => {
                                         <input
                                             name="allowed_roles"
                                             type="text"
-                                            class="input"
+                                            class="input font-mono"
                                             value={
                                                 endpoint_data
                                                     ? (
@@ -408,7 +424,7 @@ export default (_: RouteSectionProps) => {
                                         <input
                                             name="path"
                                             type="text"
-                                            class="input"
+                                            class="input font-mono"
                                             placeholder={
                                                 endpoint_data
                                                     ? (endpoint_data.path ??
@@ -442,16 +458,16 @@ export default (_: RouteSectionProps) => {
 
                                     <label class="align-middle">
                                         <span class="label mr-2">
-                                            Injects user id into query
+                                            Injects auth metadata into query
                                         </span>
                                         <input
-                                            name="inject_user_id"
+                                            name="inject_auth_metadata"
                                             type="checkbox"
                                             class="checkbox"
                                             checked={
                                                 endpoint_data
                                                     ? endpoint_data.endpoint
-                                                          .inject_user_id
+                                                          .inject_auth_metadata
                                                     : false
                                             }
                                         />
@@ -463,7 +479,7 @@ export default (_: RouteSectionProps) => {
                     <div class="flex gap-2 [&_button]:rounded-xl [&_button]:hover:shadow">
                         <button
                             id="delete_endpoint"
-                            class="btn btn-active bg-red-600 text-white"
+                            class="btn btn-active hover:text-white hover:bg-red-600"
                             classList={{
                                 hidden: endpoint_data === undefined,
                             }}
@@ -475,7 +491,7 @@ export default (_: RouteSectionProps) => {
                         <button
                             id="submit"
                             type="submit"
-                            class="btn text-black btn-success"
+                            class="btn btn-active hover:text-black hover:btn-success"
                             classList={{
                                 "btn-disabled": endpoint_data === undefined,
                             }}

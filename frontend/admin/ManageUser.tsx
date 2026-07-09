@@ -1,6 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
+import { type UserStruct } from "./User";
 import { UsersContext } from "./Users";
 
 import { confirm_btn } from "./Components/Button";
@@ -12,14 +13,6 @@ import {
     useParams,
     type RouteSectionProps,
 } from "@solidjs/router";
-
-export interface UserStruct {
-    user_id: number | null;
-    name: string;
-    email: string;
-    role: string | null;
-    password: string;
-}
 
 export default (_: RouteSectionProps) => {
     const users_context = useContext(UsersContext);
@@ -45,7 +38,6 @@ export default (_: RouteSectionProps) => {
         const form_data = Object.fromEntries(new FormData(form));
 
         const req = {
-            user_id: null,
             name: form_data["name"]?.toString(),
             email: form_data["email"]?.toString(),
             role: form_data["role"]?.toString(),
@@ -55,7 +47,10 @@ export default (_: RouteSectionProps) => {
         if (user_data) {
             for (const field in req) {
                 const value = req[field as keyof UserStruct];
-                if (value === undefined || value?.toString().length === 0)
+                if (
+                    field !== "role" &&
+                    (value === undefined || value?.toString().length === 0)
+                )
                     delete req[field as keyof UserStruct];
             }
         }
@@ -66,7 +61,7 @@ export default (_: RouteSectionProps) => {
         });
 
         if (!res.ok) {
-            console.clear();
+            // console.clear();
 
             const data = (await res.json()) as {
                 error: string;
@@ -191,7 +186,6 @@ export default (_: RouteSectionProps) => {
                                         : "Role"
                                 }
                                 value={user_data ? (user_data.role ?? "") : ""}
-                                required={user_data === undefined}
                             />
                         </label>
 
@@ -201,9 +195,7 @@ export default (_: RouteSectionProps) => {
                                 name="password"
                                 type="password"
                                 class="input peer validator"
-                                placeholder={
-                                    user_data ? "Redacted" : "Password"
-                                }
+                                placeholder="Password"
                                 value={user_data ? user_data.password : ""}
                                 minLength="8"
                                 required={user_data === undefined}
@@ -217,7 +209,7 @@ export default (_: RouteSectionProps) => {
                 <div class="flex gap-2 [&_button]:rounded-xl [&_button]:hover:shadow">
                     <button
                         id="delete_user"
-                        class="btn btn-active bg-red-600 text-white max-h-full"
+                        class="btn btn-active hover:text-white hover:bg-red-600"
                         classList={{
                             hidden: user_data === undefined,
                         }}
@@ -229,7 +221,7 @@ export default (_: RouteSectionProps) => {
                     <button
                         id="submit"
                         type="submit"
-                        class="btn text-black btn-success"
+                        class="btn btn-active hover:text-black hover:btn-success"
                         classList={{
                             "btn-disabled": user_data === undefined,
                         }}

@@ -4,7 +4,7 @@
 use crate::*;
 
 use databases::*;
-use execute::*;
+use http_execute::{request_cx::*, *};
 
 #[derive(Clone, Serialize, Deserialize, Getters, Display, Debug)]
 #[display("Endpoint manager.")]
@@ -15,19 +15,25 @@ boxed_any!(EndpointsManager);
 /// TODO: add docs here.
 #[typetag::serde(name = "EndpointManager")]
 #[async_trait]
-impl AnyExecute for EndpointsManager {
+impl AnyHttpExecute for EndpointsManager {
     async fn execute(
         &self,
-        method: HttpMethod,
+        cx: RequestCx,
         _: Arc<dyn AnyDatabaseConnection>,
-        input: ExecuteInput,
-    ) -> Result<ExecuteOutput, RequestError> {
+    ) -> Result<HttpResponse, RequestError> {
+        let RequestCx {
+            request,
+            method,
+            request_params,
+            ..
+        } = cx;
+
         match method {
             HttpMethod::Get => {
-                let simple_endpoint_id = input.params().get("endpoint_id");
+                let simple_endpoint_id = request_params.get("endpoint_id");
 
                 match simple_endpoint_id {
-                    Some(ExecuteParamValue::Client(Some(id))) => {
+                    Some(ParamValue::Client(Some(id))) => {
                         let simple_endpoints_by_file = AppCx::acquire().get_endpoints().await?;
 
                         let simple_endpoint = simple_endpoints_by_file
@@ -44,7 +50,10 @@ impl AnyExecute for EndpointsManager {
                                 RequestError::Other(anyhow!("Cannot serialize endpoint. {}", err))
                             })?;
 
-                        Ok(ExecuteOutput::Json(None, serialized_endpoint))
+                        Ok(HttpResponse::new(
+                            None,
+                            Some(BodyValue::Json(serialized_endpoint)),
+                        ))
                     }
                     None => {
                         let simple_endpoints_by_file = AppCx::acquire().get_endpoints().await?;
@@ -54,22 +63,36 @@ impl AnyExecute for EndpointsManager {
                                 RequestError::Other(anyhow!("Cannot serialize endpoints. {}", err))
                             })?;
 
-                        Ok(ExecuteOutput::Json(None, res))
+                        Ok(HttpResponse::new(None, Some(BodyValue::Json(res))))
                     }
                     _ => unreachable!(),
                 }
             }
             HttpMethod::Post => {
-                let simple_endpoint = serde_json::from_slice::<SimpleEndpoint>(input.value())
-                    .map_err(|err| {
+                let req_body = Bytes::from_vec(
+                    request
+                        .collect()
+                        .await
+                        .map_err(|err| {
+                            RequestError::Expected(
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                format!("Cannot get request's body. {}", err).into(),
+                            )
+                        })?
+                        .to_bytes()
+                        .to_vec(),
+                );
+
+                let simple_endpoint =
+                    serde_json::from_slice::<SimpleEndpoint>(&req_body).map_err(|err| {
                         RequestError::Expected(
                             StatusCode::BAD_REQUEST,
                             format!("Cannot deserialize endpoint. {}", err).to_compact_string(),
                         )
                     })?;
 
-                let target_file = match input.params().get("target_file") {
-                    Some(ExecuteParamValue::Client(Some(target_file))) => target_file.to_owned(),
+                let target_file = match request_params.get("target_file") {
+                    Some(ParamValue::Client(Some(target_file))) => target_file.to_owned(),
                     _ => "default.json".to_compact_string(),
                 };
 
@@ -92,26 +115,37 @@ impl AnyExecute for EndpointsManager {
                         )
                     })?;
 
-                Ok(ExecuteOutput::Json(None, json!({})))
+                Ok(HttpResponse::new(None, None))
             }
             HttpMethod::Put => {
-                let simple_endpoint_id = match input.params().get("endpoint_id") {
-                    Some(ExecuteParamValue::Client(Some(id))) => id.to_owned(),
+                let req_body = &request
+                    .collect()
+                    .await
+                    .map_err(|err| {
+                        RequestError::Expected(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            format!("Cannot get request's body. {}", err).into(),
+                        )
+                    })?
+                    .to_bytes()
+                    .to_vec();
+
+                let simple_endpoint_id = match request_params.get("endpoint_id") {
+                    Some(ParamValue::Client(Some(id))) => id.to_owned(),
                     _ => Err(RequestError::Expected(
                         StatusCode::BAD_REQUEST,
                         format!("Endpoint's id to delete was not specified.").to_compact_string(),
                     ))?,
                 };
 
-                let simple_endpoint_patch = serde_json::from_slice::<SimpleEndpointPatch>(
-                    input.value(),
-                )
-                .map_err(|err| {
-                    RequestError::Expected(
-                        StatusCode::BAD_REQUEST,
-                        format!("Cannot deserialize endpoint's patch. {}", err).to_compact_string(),
-                    )
-                })?;
+                let simple_endpoint_patch = serde_json::from_slice::<SimpleEndpointPatch>(req_body)
+                    .map_err(|err| {
+                        RequestError::Expected(
+                            StatusCode::BAD_REQUEST,
+                            format!("Cannot deserialize endpoint's patch. {}", err)
+                                .to_compact_string(),
+                        )
+                    })?;
 
                 AppCx::acquire()
                     .set_endpoint(simple_endpoint_id, simple_endpoint_patch)
@@ -124,11 +158,11 @@ impl AnyExecute for EndpointsManager {
                         )
                     })?;
 
-                Ok(ExecuteOutput::Json(None, json!({})))
+                Ok(HttpResponse::new(None, None))
             }
             HttpMethod::Delete => {
-                let simple_endpoint_id = match input.params().get("id") {
-                    Some(ExecuteParamValue::Client(Some(id))) => id.to_owned(),
+                let simple_endpoint_id = match request_params.get("id") {
+                    Some(ParamValue::Client(Some(id))) => id.to_owned(),
                     _ => Err(RequestError::Expected(
                         StatusCode::BAD_REQUEST,
                         format!("Endpoint id to delete was not specified.").to_compact_string(),
@@ -146,7 +180,7 @@ impl AnyExecute for EndpointsManager {
                         )
                     })?;
 
-                Ok(ExecuteOutput::Json(None, json!({})))
+                Ok(HttpResponse::new(None, None))
             }
             HttpMethod::Unknown => unreachable!(),
         }

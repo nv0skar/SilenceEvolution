@@ -8,7 +8,7 @@ use crate::*;
 #[folder = "./target/frontend"]
 pub struct StaticService;
 
-impl Service<RouterRequest> for StaticService {
+impl Service<Request<BoxBody<ConnBytes, anyhow::Error>>> for StaticService {
     type Response = Response<String>;
 
     type Error = Infallible;
@@ -22,9 +22,7 @@ impl Service<RouterRequest> for StaticService {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, cx: RouterRequest) -> Self::Future {
-        let (request, _) = cx;
-
+    fn call(&mut self, request: Request<BoxBody<ConnBytes, anyhow::Error>>) -> Self::Future {
         Box::pin(async move {
             let route = request.uri().path().trim_matches('/').to_owned();
 

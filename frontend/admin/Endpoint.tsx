@@ -2,16 +2,24 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 export interface EndpointStruct {
-    id: string;
+    id?: string;
+    database?: string;
     route: string;
-    description: string | null;
-    version: string | null;
+    version?: string;
     method: string;
+    execute?: {
+        query?: string;
+        queries?: Array<{
+            query: string;
+            include?: boolean;
+            behaviour?: string;
+        }>;
+    };
     query_params: Array<string>;
     body_params: Array<string>;
-    query: string | null;
+    description?: string;
     require_auth: boolean;
+    inject_auth_metadata: boolean;
     allowed_roles: Array<string>;
-    inject_user_id: boolean;
     auto_generated: boolean;
 }

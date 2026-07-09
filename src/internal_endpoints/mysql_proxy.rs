@@ -4,68 +4,65 @@
 use crate::*;
 
 use databases::*;
-use execute::{mysql::*, *};
+use http_execute::{mysql::*, request_cx::*, *};
 
 /// Proxies MySQL execute queries and injects internal params on runtime.
-#[derive(Clone, PartialEq, Serialize, Deserialize, Getters, Display, Debug)]
-#[display("SQL queries: {:?}", queries)]
+#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, Display, Debug)]
+#[display("SQL Proxy: {:?}", _0)]
 #[getset(get = "pub")]
-pub struct MySQLExecuteProxy {
-    queries: CheapVec<CompactString>,
-}
+#[serde(transparent)]
+pub struct MySQLExecuteProxy(MySQLExecute);
 
 boxed_any!(MySQLExecuteProxy);
 
-impl MySQLExecuteProxy {
-    pub fn new(queries: CompactString) -> Self {
-        let queries = queries
-            .split(';')
-            .map(|query| query.into())
-            .filter(|query: &CompactString| !query.is_empty())
-            .collect::<CheapVec<CompactString>>();
-
-        Self { queries }
+impl Default for MySQLExecuteProxy {
+    fn default() -> Self {
+        Self(MySQLQueryWrapper::new("SELECT * FROM example".into()).into())
     }
+}
 
-    /// This will enable Silence to execute multiple MySQL queries until Waveless' MySQL implements this.
-    pub fn new_many(queries: CheapVec<CompactString>) -> Self {
-        Self { queries }
+impl From<MySQLExecute> for MySQLExecuteProxy {
+    fn from(execute: MySQLExecute) -> Self {
+        Self(execute)
     }
 }
 
 #[typetag::serde(name = "MySQLProxy")]
 #[async_trait]
-impl AnyExecute for MySQLExecuteProxy {
+impl AnyHttpExecute for MySQLExecuteProxy {
     async fn execute(
         &self,
-        method: HttpMethod,
+        mut cx: RequestCx,
         db_conn: Arc<dyn AnyDatabaseConnection>,
-        mut input: ExecuteInput,
-    ) -> Result<ExecuteOutput, RequestError> {
+    ) -> Result<HttpResponse, RequestError> {
+        let MySQLExecuteProxy(mysql_execute) = self;
+
+        let RequestCx { request_params, .. } = &mut cx;
+
         // Inject runtime parameters.
         let _config_guard = AppCx::acquire().config().read().await;
 
-        input.params_mut().insert(
+        request_params.insert(
             "users_target_table".to_compact_string(),
-            ExecuteParamValue::Internal(
+            ParamValue::Internal(
                 _config_guard
                     .internal_params()
                     .users_target_table()
                     .to_owned(),
             ),
         );
-        input.params_mut().insert(
+        request_params.insert(
             "sessions_target_table".to_compact_string(),
-            ExecuteParamValue::Internal(
+            ParamValue::Internal(
                 _config_guard
                     .internal_params()
                     .sessions_target_table()
                     .to_owned(),
             ),
         );
-        input.params_mut().insert(
+        request_params.insert(
             "roles_target_table".to_compact_string(),
-            ExecuteParamValue::Internal(
+            ParamValue::Internal(
                 _config_guard
                     .internal_params()
                     .roles_target_table()
@@ -73,17 +70,6 @@ impl AnyExecute for MySQLExecuteProxy {
             ),
         );
 
-        let mut last_res: Result<ExecuteOutput, RequestError> =
-            Err(RequestError::Other(anyhow!("No query was executed.")));
-
-        for query in self.queries.iter().filter(|query| !query.is_empty()) {
-            let mysql_execute = Arc::new(MySQLExecute::new(query.to_owned()));
-
-            last_res = mysql_execute
-                .execute(method, db_conn.to_owned(), input.to_owned())
-                .await;
-        }
-
-        last_res
+        mysql_execute.execute(cx, db_conn).await
     }
 }

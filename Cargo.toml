@@ -9,9 +9,9 @@ rustyrosetta = { git = "https://github.com/nv0skar/RustyRosetta.git", tag = "rus
     "all",
 ] }
 
-waveless_commons = { git = "https://github.com/nv0skar/Waveless.git", tag = "0.0.0"}
-waveless_compiler = { git = "https://github.com/nv0skar/Waveless.git", tag = "0.0.0"}
-waveless_executor = { git = "https://github.com/nv0skar/Waveless.git", tag = "0.0.0" }
+waveless_commons = { git = "https://github.com/nv0skar/Waveless.git" }
+waveless_compiler = { git = "https://github.com/nv0skar/Waveless.git" }
+waveless_executor = { git = "https://github.com/nv0skar/Waveless.git" }
 
 tokio = { version = "1.48", features = ["full", "tracing"] }
 
@@ -24,10 +24,12 @@ serde_with = { version = "3.16", features = ["chrono"] }
 
 hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
-http-body-util = "0.1"
 tower = { version = "0.5.3", features = ["full"] }
 tower-http = "0.7.0"
 http = "1.4.0"
+http-body-util = "0.1"
+
+bytes = "1.12"
 
 rust-embed-for-web = "11.3"
 mime_guess = "2.0"

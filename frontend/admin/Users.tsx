@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 import { SessionContext } from "./Admin";
-import { type UserStruct } from "./ManageUser";
+import { type UserStruct } from "./User";
 
 import {
     children,
@@ -16,6 +16,8 @@ import {
 } from "solid-js";
 
 import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
+
+import { pipe, map } from "remeda";
 
 export const UsersContext = createContext<{
     users_data: Array<UserStruct>;
@@ -37,7 +39,15 @@ export default (props: RouteSectionProps) => {
             if (!res.ok) console.clear();
 
             if (res.status === 200) {
-                const data = (await res.json()) as Array<UserStruct>;
+                let data = (await res.json()) as Array<UserStruct>;
+
+                data = pipe(
+                    data,
+                    map((user) => {
+                        if (user.role?.length === 0) delete user.role;
+                        return user;
+                    }),
+                );
 
                 return data;
             } else {
@@ -134,7 +144,9 @@ export default (props: RouteSectionProps) => {
                         <div class="table text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
                                 <div class="table-row font-bold bg-base-200 [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
-                                    <div class="table-cell rounded-tl-xl!"></div>
+                                    <div class="table-cell rounded-tl-xl! pl-8!">
+                                        ID
+                                    </div>
                                     <div class="table-cell">Name</div>
                                     <div class="table-cell">Email</div>
                                     <div class="table-cell">Role</div>
@@ -176,8 +188,8 @@ export default (props: RouteSectionProps) => {
                                             <div class="table-cell">
                                                 {user().role ?? "—"}
                                             </div>
-                                            <div class="table-cell pr-4!">
-                                                {user().password}
+                                            <div class="table-cell [&_span]:hidden after:content-['******'] after:text-base-content hover:[&_span]:block hover:after:hidden pr-4!">
+                                                <span>{user().password}</span>
                                             </div>
                                         </div>
                                     )}

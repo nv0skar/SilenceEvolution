@@ -40,16 +40,14 @@ export default (props: RouteSectionProps) => {
         if (!res.ok) console.clear();
 
         if (res.status === 200) {
-            const data = (await res.json())[0];
+            const data = await res.json();
 
             if ((data as SessionStruct).role !== "admin") {
                 const res = await fetch("/api/internal/bootstrap");
 
-                const maybe_new_role = (await res.json())[0] as {
+                const maybe_new_role = (await res.json()) as {
                     role: string | null;
                 };
-
-                console.log(maybe_new_role);
 
                 data.role = maybe_new_role.role;
             }

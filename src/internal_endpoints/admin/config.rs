@@ -6,7 +6,7 @@ use crate::*;
 use config::*;
 
 use databases::*;
-use execute::*;
+use http_execute::{request_cx::*, *};
 
 #[derive(Clone, Serialize, Deserialize, Getters, Display, Debug)]
 #[display("Endpoint manager.")]
@@ -17,13 +17,16 @@ boxed_any!(ConfigManager);
 /// TODO: add docs here.
 #[typetag::serde(name = "ConfigManager")]
 #[async_trait]
-impl AnyExecute for ConfigManager {
+impl AnyHttpExecute for ConfigManager {
     async fn execute(
         &self,
-        method: HttpMethod,
+        cx: RequestCx,
         _: Arc<dyn AnyDatabaseConnection>,
-        input: ExecuteInput,
-    ) -> Result<ExecuteOutput, RequestError> {
+    ) -> Result<HttpResponse, RequestError> {
+        let RequestCx {
+            request, method, ..
+        } = cx;
+
         match method {
             HttpMethod::Get => {
                 let config = AppCx::acquire().config().read().await.to_owned();
@@ -32,27 +35,39 @@ impl AnyExecute for ConfigManager {
                     RequestError::Other(anyhow!("Cannot serialize endpoints. {}", err))
                 })?;
 
-                Ok(ExecuteOutput::Json(None, res))
+                Ok(HttpResponse::new(None, Some(BodyValue::Json(res))))
             }
             HttpMethod::Put => {
                 {
                     let mut config_guard = AppCx::acquire().config().write().await;
 
-                    let config_patch = serde_json::from_slice::<ConfigPatch>(input.value())
-                        .map_err(|err| {
-                            RequestError::Expected(
-                                StatusCode::BAD_REQUEST,
-                                format!("Cannot deserialize config's patch. {}", err)
-                                    .to_compact_string(),
-                            )
-                        })?;
+                    let config_patch = serde_json::from_slice::<ConfigPatch>(
+                        &request
+                            .collect()
+                            .await
+                            .map_err(|err| {
+                                RequestError::Expected(
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    format!("Cannot get request's body. {}", err).into(),
+                                )
+                            })?
+                            .to_bytes()
+                            .to_vec(),
+                    )
+                    .map_err(|err| {
+                        RequestError::Expected(
+                            StatusCode::BAD_REQUEST,
+                            format!("Cannot deserialize config's patch. {}", err)
+                                .to_compact_string(),
+                        )
+                    })?;
 
                     config_guard.apply(config_patch);
                 }
 
                 AppCx::acquire().set_config().await?;
 
-                Ok(ExecuteOutput::Json(None, json!({})))
+                Ok(HttpResponse::new(None, None))
             }
             _ => unreachable!(),
         }
