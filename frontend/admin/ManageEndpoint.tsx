@@ -4,7 +4,7 @@
 import { type EndpointStruct } from "./Endpoint";
 import { EndpointsContext } from "./Endpoints";
 
-import { confirm_btn } from "./Components/Button";
+import { confirm_btn } from "./components/Button";
 
 import {
     createEffect,

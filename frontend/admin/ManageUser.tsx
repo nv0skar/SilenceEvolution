@@ -4,7 +4,7 @@
 import { type UserStruct } from "./User";
 import { UsersContext } from "./Users";
 
-import { confirm_btn } from "./Components/Button";
+import { confirm_btn } from "./components/Button";
 
 import { createSignal, Show, useContext } from "solid-js";
 

@@ -2,9 +2,11 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 pub mod admin;
+pub mod console;
 pub mod mysql_proxy;
 
 use admin::*;
+use console::*;
 use mysql_proxy::*;
 
 use crate::*;
@@ -14,7 +16,7 @@ use http_execute::mysql::*;
 pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
     // NOTE: if the main and internal databases are the same, two connections to the same database are still opened as the app's cx cannot be accessed from here due to the app's initialization order.
 
-    Endpoints::new_unchecked(CheapVec::from_vec(vec![
+    Endpoints::new_unchecked(CheapVec::from_iter([
         EndpointBuilder::default()
             .id("Whoami".into())
             .database("internal".into())
@@ -283,6 +285,16 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .description("Sets Silence app's settings.".into())
             .require_auth(true)
             .allowed_roles(CheapVec::from_vec(vec!["admin".into()]))
+            .build()
+            .unwrap(),
+        EndpointBuilder::default()
+            .id("ConsoleStream".into())
+            .target(Targets::SocketTarget(SocketTargetBuilder::default()
+                .execute(Arc::new(ConsoleStream))
+                .build()
+                .unwrap()
+            ))
+            .description("Streams Silence's console log.".into())
             .build()
             .unwrap(),
     ]))

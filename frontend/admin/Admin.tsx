@@ -3,6 +3,8 @@
 
 import { type ConfigStruct } from "./Config";
 
+import Console from "./components/Console";
+
 import { createContext, createResource, Show, type Resource } from "solid-js";
 
 import {
@@ -205,11 +207,13 @@ export default (props: RouteSectionProps) => {
                                 <SessionContext.Provider value={user}>
                                     {props.children}
                                 </SessionContext.Provider>
+
+                                <Console />
                             </Show>
                         </Show>
                     </div>
                 </div>
-                <div class="drawer-side is-drawer-close:overflow-visible">
+                <div class="drawer-side is-drawer-close:overflow-visible z-10">
                     <label
                         for="app-drawer"
                         aria-label="close sidebar"

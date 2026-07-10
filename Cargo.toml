@@ -29,6 +29,9 @@ tower-http = "0.7.0"
 http = "1.4.0"
 http-body-util = "0.1"
 
+tungstenite = "0.29"
+hyper-tungstenite = "0.20.0"
+
 bytes = "1.12"
 
 rust-embed-for-web = "11.3"

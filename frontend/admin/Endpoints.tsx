@@ -14,7 +14,6 @@ import {
     on,
     Show,
     useContext,
-    type Accessor,
 } from "solid-js";
 
 import {
@@ -118,62 +117,6 @@ export default (props: RouteSectionProps) => {
             }
         }),
     );
-
-    const render_field = (
-        field: Accessor<[string, any]>,
-        ix: number,
-    ): Element => {
-        const [_, value] = field();
-
-        switch (typeof value) {
-            case "string": {
-                if ((value as string).length === 0)
-                    return (<span>—</span>) as Element;
-                else if (ix === 7) {
-                    const [formatted_sql, set_formatted_sql] =
-                        createSignal<string>("—");
-
-                    createEffect(async () => {
-                        set_formatted_sql(
-                            await sql_grammar()?.highlight(value)!,
-                        );
-                    });
-
-                    return (
-                        <Show
-                            when={
-                                !sql_grammar.loading &&
-                                formatted_sql() !== undefined
-                            }
-                        >
-                            <span innerHTML={formatted_sql() as string}></span>
-                        </Show>
-                    ) as Element;
-                } else
-                    return (
-                        <span
-                            classList={{
-                                "font-bold": ix === 0,
-                            }}
-                        >
-                            {value as string}
-                        </span>
-                    ) as Element;
-            }
-            case "boolean": {
-                if (value)
-                    return (<span class="text-success">Yes</span>) as Element;
-                else return (<span class="text-error">No</span>) as Element;
-            }
-            default: {
-                return (
-                    <span>
-                        {/*{value ? (value as Array<string>).join(", ") : "—"}*/}
-                    </span>
-                ) as Element;
-            }
-        }
-    };
 
     return (
         <>
@@ -380,8 +323,8 @@ export default (props: RouteSectionProps) => {
                                 <Index
                                     each={endpoints()?.sort(
                                         (endpoint_pair_1, endpoint_pair_2) => {
-                                            return endpoint_pair_1.endpoint.id.localeCompare(
-                                                endpoint_pair_2.endpoint.id,
+                                            return endpoint_pair_1.endpoint.id!.localeCompare(
+                                                endpoint_pair_2.endpoint.id!,
                                             );
                                         },
                                     )}
@@ -534,7 +477,7 @@ export default (props: RouteSectionProps) => {
                                                                                 .execute !==
                                                                                 null
                                                                                 ? endpoint()
-                                                                                      .endpoint.execute!.queries.map(
+                                                                                      .endpoint.execute!.queries!.map(
                                                                                           (
                                                                                               query,
                                                                                           ) =>

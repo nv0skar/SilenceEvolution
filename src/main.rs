@@ -3,7 +3,7 @@
 
 use silence::*;
 
-use silence::internal_endpoints::mysql_proxy::*;
+use silence::internal_endpoints::{console::*, mysql_proxy::*};
 
 use waveless_commons::{databases::*, endpoint::*, *};
 use waveless_executor::*;
@@ -25,6 +25,7 @@ use iocraft::prelude::*;
 use mimalloc::MiMalloc;
 use nestify::*;
 use tower::util::BoxCloneService;
+use tracing_subscriber::{filter::LevelFilter, *};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -107,7 +108,20 @@ async fn try_main() -> Result<ResultContext> {
     let cli = SilenceCLI::parse();
 
     // Setup logging.
-    subscribe_logging(cli.debug)?;
+    let console = fmt::layer()
+        .with_writer(ConsoleTracingWriter::new().await)
+        .with_target(true)
+        .with_filter(if cli.debug {
+            LevelFilter::DEBUG
+        } else {
+            LevelFilter::INFO
+        });
+
+    subscribe_logging(
+        cli.debug,
+        // CheapVec::from_iter([ConsoleTracingLayer.boxed()]),
+        CheapVec::from_iter([console.boxed()]),
+    )?;
 
     match cli.subcommand {
         Some(Subcommands::Run {
