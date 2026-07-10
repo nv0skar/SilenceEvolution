@@ -1,7 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { EndpointsContext } from "./Endpoints";
+import { EndpointsContext } from "./Endpoints.tsx";
 
 import {
     createEffect,

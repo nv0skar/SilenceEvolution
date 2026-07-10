@@ -1,8 +1,8 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "./Admin";
-import { type UserStruct } from "./User";
+import { SessionContext } from "./Admin.tsx";
+import { type UserStruct } from "./User.tsx";
 
 import {
     children,

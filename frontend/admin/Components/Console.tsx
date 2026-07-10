@@ -1,13 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import {
-    createContext,
-    createResource,
-    createSignal,
-    Show,
-    type Resource,
-} from "solid-js";
+import { createSignal, Show } from "solid-js";
 
 import { Portal } from "solid-js/web";
 

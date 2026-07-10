@@ -1,9 +1,9 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type ConfigStruct } from "./Config";
+import { type ConfigStruct } from "./Config.tsx";
 
-import Console from "./components/Console";
+import Console from "./Components/Console.tsx";
 
 import { createContext, createResource, Show, type Resource } from "solid-js";
 

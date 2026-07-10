@@ -1,10 +1,10 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type EndpointStruct } from "./Endpoint";
-import { EndpointsContext } from "./Endpoints";
+import { type EndpointStruct } from "./Endpoint.tsx";
+import { EndpointsContext } from "./Endpoints.tsx";
 
-import { confirm_btn } from "./components/Button";
+import { confirm_btn } from "./Components/Button.tsx";
 
 import {
     createEffect,

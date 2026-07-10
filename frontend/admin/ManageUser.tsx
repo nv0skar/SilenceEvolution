@@ -1,10 +1,10 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type UserStruct } from "./User";
-import { UsersContext } from "./Users";
+import { type UserStruct } from "./User.tsx";
+import { UsersContext } from "./Users.tsx";
 
-import { confirm_btn } from "./components/Button";
+import { confirm_btn } from "./Components/Button.tsx";
 
 import { createSignal, Show, useContext } from "solid-js";
 

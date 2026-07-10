@@ -1,7 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "./Admin";
+import { SessionContext } from "./Admin.tsx";
 
 import {
     children,
