@@ -3,6 +3,8 @@
 
 import { EndpointsContext } from "./Endpoints.tsx";
 
+import AlertBox, { type AlertStruct } from "./Components/AlertContainer.tsx";
+
 import {
     createEffect,
     createResource,
@@ -32,10 +34,14 @@ export default (_: RouteSectionProps) => {
 
     if (!endpoints_context) return <span></span>; // This component may be rendered twice, one of the renders will happen with endpoints' context undefined.
 
-    const [error, set_error] = createSignal<string | undefined>(undefined);
+    const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
+        undefined,
+    );
 
     const [response, set_response] = createSignal<
         | {
+              route: string;
+              status: number;
               time: string;
               body: string;
           }
@@ -169,7 +175,7 @@ export default (_: RouteSectionProps) => {
             credentials: "omit",
         });
 
-        const body = await res.json();
+        const body = await res.json().catch((_) => new Object());
 
         if ("token" in body) {
             localStorage.setItem("test_authorization", body["token"]);
@@ -182,10 +188,15 @@ export default (_: RouteSectionProps) => {
                 set_authorization(undefined);
             }
 
-            set_error(body["error"]);
+            set_alert({
+                value: body["error"] ?? "Unknown error.",
+                is_error: true,
+            });
         }
 
         set_response({
+            route: base_route,
+            status: res.status,
             time: res.headers.get("Date")!,
             body: JSON.stringify(body, null, "\t"),
         });
@@ -227,6 +238,16 @@ export default (_: RouteSectionProps) => {
         }
     });
 
+    createEffect(() => {
+        set_alert({
+            value: `Help: test the endpoint ${id} on this page, make sure to fill the request's parameters and body as required. Note that the current endpoint ${endpoint_data?.endpoint.require_auth ? "requires authentication" : "doesn't require authentication."}`,
+        });
+
+        setTimeout(() => {
+            if (!get_alert()!.is_error) set_alert(undefined);
+        }, 5000);
+    });
+
     return (
         <>
             <div class="grid gap-2 py-8">
@@ -241,21 +262,16 @@ export default (_: RouteSectionProps) => {
                     when={endpoint_data !== undefined}
                     fallback={<span>The endpoint {id} doesn't exist.</span>}
                 >
-                    <Show when={error() != undefined}>
-                        <div
-                            class="bg-red-800 border-red-400 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer"
-                            onClick={() => set_error(undefined)}
-                        >
-                            <p class="text-sm font-semibold">
-                                An error has occurred. {error()!}
-                            </p>
-                        </div>
-                    </Show>
+                    <AlertBox
+                        get_alert={get_alert}
+                        set_alert={set_alert}
+                    ></AlertBox>
+
                     <form
                         id="form"
                         class="[&_span]:mb-1"
                         onInput={(event) => {
-                            set_error(undefined);
+                            if (get_alert()?.is_error) set_alert(undefined);
 
                             let form = event.currentTarget;
                             let submit = document.getElementById("submit");
@@ -460,14 +476,15 @@ export default (_: RouteSectionProps) => {
                     </form>
                     <div class="flex gap-1 my-2 text-xs font-bold">
                         <span>Authorization header: </span>
-
-                        {authorization() !== undefined ? (
-                            <span class="text-green-500">
-                                {authorization()!}
-                            </span>
-                        ) : (
-                            <span class="text-red-500">no</span>
-                        )}
+                        <div class="font-mono">
+                            {authorization() !== undefined ? (
+                                <span class="text-green-500">
+                                    {authorization()!}
+                                </span>
+                            ) : (
+                                <span class="text-red-500">no</span>
+                            )}
+                        </div>
                     </div>
                     <div class="flex gap-2 [&_button]:rounded-xl [&_button]:hover:shadow">
                         <button
@@ -485,12 +502,23 @@ export default (_: RouteSectionProps) => {
                         </button>
                     </div>
                     <Show when={response() !== undefined}>
-                        <div class="bg-base-100/25 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96 backdrop-blur shadow-xl rounded-box my-2 p-2">
+                        <div class="flex flex-col gap-1.5 bg-base-100/25 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96 backdrop-blur shadow-xl rounded-box my-2 p-4">
                             <span class="text-xs">
-                                Response at {response()!.time}
+                                Response from{" "}
+                                <span class="font-mono">
+                                    {response()!.route}
+                                </span>{" "}
+                                at{" "}
+                                <span class="font-mono">
+                                    {response()!.time}
+                                </span>{" "}
+                                with status{" "}
+                                <span class="font-mono">
+                                    {response()!.status}
+                                </span>
                             </span>
                             <p
-                                class="text-sm font-semibold whitespace-pre-wrap"
+                                class="text-sm font-mono whitespace-pre-wrap"
                                 ref={response_body_element}
                             ></p>
                         </div>
