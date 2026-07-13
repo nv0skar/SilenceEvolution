@@ -9,6 +9,10 @@ import {
 } from "@admin/endpoints";
 
 import Modal from "@admin/components/Modal.tsx";
+import AlertBox, {
+    type AlertStruct,
+} from "@admin/components/AlertContainer.tsx";
+import { SortableColumnCell } from "@admin/components/List";
 
 import {
     children,
@@ -34,14 +38,23 @@ export default (props: RouteSectionProps) => {
 
     const navigate = useNavigate();
 
+    const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
+        undefined,
+    );
+
     // Full data.
     const [get_full_data, set_full_data] = createSignal<boolean>(false);
 
-    // Sort state.
-    const [sort, set_sort] = createSignal<{
-        id: keyof Endpoint;
+    // Table sort state.
+    const [get_table_sort, set_table_sort] = createSignal<{
+        field: keyof any;
         order: "asc" | "desc";
-    }>({ id: "id", order: "asc" });
+    }>({ field: "id", order: "asc" });
+
+    // Search field.
+    const [get_search, set_search] = createSignal<string | undefined>(
+        undefined,
+    );
 
     // Load endpoints.
     const [endpoints, { refetch }] = createResource(
@@ -115,20 +128,6 @@ export default (props: RouteSectionProps) => {
             set_endpoints_list(
                 pipe(
                     endpoints()!,
-                    sortBy([
-                        (endpoint_by_file) =>
-                            endpoint_by_file.endpoint[sort().id]!,
-                        sort().order,
-                    ]),
-                ),
-            );
-    });
-
-    createEffect(() => {
-        if (endpoints !== undefined)
-            set_endpoints_list(
-                pipe(
-                    endpoints()!,
                     filter((endpoint_by_file) => {
                         return (
                             get_full_data() ||
@@ -140,73 +139,134 @@ export default (props: RouteSectionProps) => {
                     }),
                     sortBy([
                         (endpoint_by_file) =>
-                            endpoint_by_file.endpoint[sort().id]!,
-                        sort().order,
+                            endpoint_by_file.endpoint[
+                                get_table_sort().field as keyof Endpoint
+                            ]!,
+                        get_table_sort().order,
                     ]),
+                    filter((endpoint_by_file) => {
+                        if (get_search() !== undefined) {
+                            const search_term = get_search()!.toLowerCase();
+
+                            return (
+                                endpoint_by_file.endpoint
+                                    .id!.toLowerCase()
+                                    .includes(search_term) ||
+                                endpoint_by_file.endpoint
+                                    .route!.toLowerCase()
+                                    .includes(search_term)
+                            );
+                        } else return true;
+                    }),
                 ),
             );
     });
 
     createEffect(() =>
-        set_endpoints_list(
-            pipe(
-                endpoints_list(),
-                sortBy([
-                    (endpoint_by_file) => endpoint_by_file.endpoint[sort().id]!,
-                    sort().order,
-                ]),
-            ),
-        ),
+        set_alert({
+            value: "Help: list of all endpoints, select an endpoint to modify or test it. Note that internal endpoints are not listed.",
+        }),
     );
 
     return (
         <>
             <div>
-                <div class="flex items-center w-full">
-                    <h1 class="text-2xl lg:text-4xl font-bold">Endpoints</h1>
-                    <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
-                        <A
-                            class="btn text-sm self-end text-right ml-auto"
-                            href="/endpoints/new"
-                        >
-                            <span class="material-symbols-outlined lg:hidden!">
-                                add
-                            </span>
-                            <span class="not-lg:hidden">
-                                Create new endpoint
-                            </span>
-                        </A>
-                        <button
-                            class="btn text-sm self-end text-right ml-auto"
-                            onClick={refetch}
-                        >
-                            <span class="material-symbols-outlined">
-                                refresh
-                            </span>
-                        </button>
-                        <div
-                            class="py-2 btn btn-ghost bg-base-200 border border-base-300 flex items-baseline-last gap-2"
-                            onClick={(_) => {
-                                set_full_data(!get_full_data());
-                            }}
-                        >
-                            <span
-                                class="text-xs text-blue-500 font-semibold self-center"
+                <div class="flex flex-col gap-3 pb-3 items-center w-full">
+                    <div class="flex not-lg:flex-col not-lg:gap-3 items-center w-full">
+                        <h1 class="text-4xl font-bold">Endpoints</h1>
+                        <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
+                            <A
+                                class="btn text-sm self-end text-right ml-auto"
+                                href="/endpoints/new"
+                            >
+                                <span class="material-symbols-outlined lg:hidden!">
+                                    add
+                                </span>
+                                <span class="not-lg:hidden">
+                                    Create new endpoint
+                                </span>
+                            </A>
+                            <button
+                                class="btn text-sm self-end text-right ml-auto"
+                                popovertarget="search-dropdown"
+                                style="anchor-name:--search-dropdown"
+                            >
+                                <span class="material-symbols-outlined">
+                                    search
+                                </span>
+                            </button>
+                            <ul
+                                id="search-dropdown"
+                                class="dropdown menu w-64 rounded-box bg-base-200/25 border-base-300 border backdrop-blur-sm backdrop-brightness-110 shadow-lg opacity-0 [&:popover-open]:opacity-100 starting:opacity-0 transition-all transition-discrete duration-200"
                                 classList={{
-                                    "text-red-500": get_full_data(),
+                                    hidden: resolved_children() !== undefined,
+                                }}
+                                style="position-anchor:--search-dropdown; inset: auto; align-self: anchor-center; justify-self: anchor-left; margin: 0.5rem;"
+                                onMouseLeave={(event) =>
+                                    (
+                                        event.currentTarget as HTMLUListElement
+                                    ).togglePopover()
+                                }
+                                popover
+                            >
+                                <li>
+                                    <input
+                                        class="input"
+                                        placeholder="Search"
+                                        onInput={(event) =>
+                                            set_search(
+                                                event.currentTarget.value ??
+                                                    undefined,
+                                            )
+                                        }
+                                        onFocus={(event) => {
+                                            event.currentTarget.value = "";
+                                            set_search(undefined);
+                                        }}
+                                        autofocus
+                                    ></input>
+                                </li>
+                            </ul>
+                            <button
+                                class="btn text-sm self-end text-right ml-auto"
+                                onClick={refetch}
+                            >
+                                <span class="material-symbols-outlined">
+                                    refresh
+                                </span>
+                            </button>
+                            <div
+                                class="py-2 btn btn-ghost bg-base-200 border border-base-300 flex items-baseline-last gap-2"
+                                onClick={(_) => {
+                                    set_full_data(!get_full_data());
                                 }}
                             >
-                                {get_full_data() ? "Full data" : "Reduced data"}
-                            </span>
-                            <input
-                                id="table-mode"
-                                type="checkbox"
-                                class="toggle"
-                                checked={get_full_data()}
-                            />
+                                <span
+                                    class="text-xs text-blue-500 font-semibold self-center"
+                                    classList={{
+                                        "text-red-500": get_full_data(),
+                                    }}
+                                >
+                                    {get_full_data()
+                                        ? "Full data"
+                                        : "Reduced data"}
+                                </span>
+                                <input
+                                    id="table-mode"
+                                    type="checkbox"
+                                    class="toggle"
+                                    checked={get_full_data()}
+                                />
+                            </div>
                         </div>
                     </div>
+
+                    <AlertBox
+                        alert_signals={[get_alert, set_alert]}
+                        hide_timeout={!get_alert()?.is_error ? 5000 : undefined}
+                    ></AlertBox>
                 </div>
+
                 <Show
                     when={!endpoints.loading}
                     fallback={
@@ -227,47 +287,37 @@ export default (props: RouteSectionProps) => {
                     </Modal>
 
                     <div class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95">
-                        <div class="table text-sm table-auto border-collapse my-6">
+                        <div class="table text-sm table-auto border-collapse">
                             <div class="table-header-group border-b-2 border-b-base-300">
-                                <div class="table-row font-bold bg-base-300 [&_div]:w-auto [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                <div class="table-row font-bold bg-base-300 [&>div]:w-auto [&>div]:p-3 [&_div]:align-middle [&>div]:text-left [&>div]:rounded-none">
                                     <div class="table-cell rounded-tl-xl!"></div>
-                                    <div
-                                        class="table-cell"
-                                        onClick={(_) => {
-                                            set_sort({
-                                                id: "id",
-                                                order: "asc",
-                                            });
-                                        }}
-                                    >
-                                        ID
-                                    </div>
-                                    <div
-                                        class="table-cell"
-                                        onClick={(_) => {
-                                            set_sort({
-                                                id: "route",
-                                                order: "asc",
-                                            });
-                                        }}
-                                    >
-                                        Route
-                                    </div>
-                                    <div
-                                        class="table-cell"
+                                    <SortableColumnCell
+                                        title="ID"
+                                        field="id"
+                                        table_sort={[
+                                            get_table_sort,
+                                            set_table_sort,
+                                        ]}
+                                    />
+                                    <SortableColumnCell
+                                        title="Route"
+                                        field="route"
+                                        table_sort={[
+                                            get_table_sort,
+                                            set_table_sort,
+                                        ]}
+                                    />
+                                    <SortableColumnCell
+                                        title="Description"
+                                        field="description"
                                         classList={{
                                             "hidden!": !get_full_data(),
                                         }}
-                                        onClick={(_) => {
-                                            set_sort({
-                                                id: "description",
-                                                order: "asc",
-                                            });
-                                        }}
-                                    >
-                                        Description
-                                    </div>
-
+                                        table_sort={[
+                                            get_table_sort,
+                                            set_table_sort,
+                                        ]}
+                                    />
                                     <div class="table-cell">Version</div>
                                     <div class="table-cell">Method</div>
                                     <div

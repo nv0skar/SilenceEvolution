@@ -16,7 +16,7 @@
         "daisyui": "~5.5.23",
         "sass-embedded": "~1.100.0",
         "tailwindcss": "~4.3.2",
-        "typescript": "~6.0.3",
+        "typescript": "~7.0.2",
         "vite": "~8.1.4",
         "vite-imagetools": "~10.0.1",
         "vite-plugin-solid": "~2.11.12"
