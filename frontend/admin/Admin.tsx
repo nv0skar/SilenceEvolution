@@ -1,9 +1,9 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type ConfigStruct } from "./Config.tsx";
+import { type ConfigStruct } from "@admin/Config.tsx";
 
-import Console from "./Components/Console.tsx";
+import Console from "@admin/components/Console.tsx";
 
 import { createContext, createResource, Show, type Resource } from "solid-js";
 
@@ -90,11 +90,11 @@ export default (props: RouteSectionProps) => {
 
     return (
         <>
-            <div class="drawer lg:drawer-open [&_input]:rounded-2xl [&_input]:bg-base-100/75 [&_input]:backdrop-brightness-125 [&_input]:backdrop-blur-xs [&_textarea]:rounded-2xl">
+            <div class="drawer lg:drawer-open [&_input]:rounded-2xl [&_input]:bg-base-200/75 [&_input]:backdrop-brightness-125 [&_input]:backdrop-blur-xs [&_textarea]:rounded-2xl">
                 <input id="app-drawer" type="checkbox" class="drawer-toggle" />
                 <div class="drawer-content flex flex-col">
                     <nav>
-                        <div class="navbar bg-base-100/20 backdrop-blur-sm shadow fixed left-0 z-10">
+                        <div class="navbar bg-base-100/20 backdrop-blur-sm shadow-xs dark:shadow fixed left-0 z-10">
                             <div class="navbar-start flex gap-2">
                                 <label
                                     for="app-drawer"
@@ -106,7 +106,7 @@ export default (props: RouteSectionProps) => {
                                     </span>
                                 </label>
                                 <Show when={config() !== undefined}>
-                                    <span class="text-[0.5rem] max-h-16 not-lg:max-w-28 lg:text-xs text-emerald-700 dark:text-emerald-500 font-semibold animate-pulse bg-base-300/50 backdrop-blur-xs rounded-2xl border border-base-200 px-3 py-1 lg:ml-24 overflow-y-scroll scrollbar-none">
+                                    <span class="text-[0.5rem] max-h-16 text-xs! text-emerald-700 dark:text-emerald-500 font-semibold animate-pulse bg-base-300/50 backdrop-blur-xs rounded-2xl border border-base-200 px-3 py-1 ml-24 overflow-y-scroll not-lg:hidden scrollbar-none">
                                         Running on database{" "}
                                         <span class="font-black">
                                             {config()?.databases_conn.main.db}

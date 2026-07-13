@@ -1,10 +1,12 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type EndpointStruct } from "./Endpoint.tsx";
-import { EndpointsContext } from "./Endpoints.tsx";
+import { type Endpoint, EndpointsContext } from "@admin/endpoints";
 
-import { confirm_btn } from "./Components/Button.tsx";
+import AlertBox, {
+    type AlertStruct,
+} from "@admin/components/AlertContainer.tsx";
+import { confirm_btn } from "@admin/components/Button.tsx";
 
 import {
     createEffect,
@@ -29,7 +31,9 @@ export default (_: RouteSectionProps) => {
 
     const navigate = useNavigate();
 
-    const [error, set_error] = createSignal<string | undefined>(undefined);
+    const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
+        undefined,
+    );
 
     const id = useParams()["id"];
 
@@ -81,16 +85,16 @@ export default (_: RouteSectionProps) => {
             ),
             auto_generated:
                 form_data["auto_generated"]?.toString() == "on" ? true : false,
-        } as EndpointStruct;
+        } as Endpoint;
 
         if (endpoint_data) {
             for (const field in req) {
-                const value = req[field as keyof EndpointStruct];
+                const value = req[field as keyof Endpoint];
                 if (
                     value === undefined ||
                     (!Array.isArray(value) && (value as string).length === 0)
                 )
-                    delete req[field as keyof EndpointStruct];
+                    delete req[field as keyof Endpoint];
             }
         }
 
@@ -109,7 +113,7 @@ export default (_: RouteSectionProps) => {
                 error: string;
             };
 
-            set_error(data.error);
+            set_alert({ value: data.error, is_error: true });
 
             return;
         }
@@ -148,7 +152,7 @@ export default (_: RouteSectionProps) => {
             delete_button.innerText = "Retry";
             delete_button.setAttribute("data-confirmed", "false");
 
-            set_error(data.error);
+            set_alert({ value: data.error, is_error: true });
         }
     };
 
@@ -170,6 +174,12 @@ export default (_: RouteSectionProps) => {
                     ?.queries!.map((mysql_query) => mysql_query.query)
                     .join("; ") ?? "",
             );
+    });
+
+    createEffect(() => {
+        set_alert({
+            value: `Help: ${id ? `modify ${id}'s parameters` : `create a new endpoint`}, note that as soon a change is committed the changes will immediately take effect without reloading the server.`,
+        });
     });
 
     return (
@@ -194,21 +204,16 @@ export default (_: RouteSectionProps) => {
                         </span>
                     }
                 >
-                    <Show when={error() != undefined}>
-                        <div
-                            class="bg-red-800 border-red-400 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer"
-                            onClick={() => set_error(undefined)}
-                        >
-                            <p class="text-sm font-semibold">
-                                An error has occurred. {error()!}
-                            </p>
-                        </div>
-                    </Show>
+                    <AlertBox
+                        alert_signals={[get_alert, set_alert]}
+                        hide_timeout={!get_alert()?.is_error ? 5000 : undefined}
+                    ></AlertBox>
+
                     <form
                         id="form"
                         class="[&_span]:mb-1"
                         onInput={(event) => {
-                            set_error(undefined);
+                            set_alert(undefined);
 
                             let form = event.currentTarget;
                             let submit = document.getElementById("submit");
@@ -301,7 +306,7 @@ export default (_: RouteSectionProps) => {
                             <div class="overflow-auto overscroll-contain">
                                 <div class="grid grid-cols-1 box-border min-w-0 font-mono **:text-sm **:leading-6 overflow-hidden">
                                     <div
-                                        class="bg-base-100/25 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0 pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
+                                        class="bg-base-200/75 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0 backdrop-brightness-125 backdrop-blur-xs pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
                                         innerHTML={formatted_sql()}
                                     ></div>
                                     <textarea
@@ -334,7 +339,7 @@ export default (_: RouteSectionProps) => {
                             </div>
                         </label>
 
-                        <details class="collapse bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1">
+                        <details class="collapse bg-white/50 dark:bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1">
                             <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-200">
                                 Extras
                             </summary>

@@ -1,0 +1,103 @@
+// SilenceEvolution
+// Copyright (C) 2026 Oscar Alvarez Gonzalez
+
+import { children, Show, type ParentProps } from "solid-js";
+
+import { Portal } from "solid-js/web";
+
+import { A, useNavigate, useParams } from "@solidjs/router";
+
+export default (props: { parent_path: string } & ParentProps) => {
+    const navigate = useNavigate();
+
+    const params = useParams();
+
+    const expected_children = children(() => props.children);
+
+    return (
+        <>
+            <Portal>
+                <div
+                    class="overscroll-none antialiased fixed top-0 left-0 w-screen h-screen p-4 z-20 backdrop-blur-md backdrop-brightness-90 transition duration-500 [&_input]:rounded-2xl [&_input]:bg-base-200/75 [&_input]:backdrop-brightness-125 [&_input]:backdrop-blur-xs [&_textarea]:rounded-2xl"
+                    classList={{
+                        "opacity-0 pointer-events-none":
+                            expected_children() === undefined,
+                    }}
+                >
+                    <div
+                        class="flex h-screen justify-center items-center"
+                        onClick={() =>
+                            navigate(props.parent_path, {
+                                replace: false,
+                                scroll: false,
+                            })
+                        }
+                    >
+                        <div
+                            id="modal"
+                            class="relative lg:m-32 w-full min-h-fit max-h-screen px-4 bg-base-100/75 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-500"
+                            classList={{
+                                "opacity-0 scale-75":
+                                    expected_children() === undefined,
+                            }}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                            }}
+                        >
+                            <div class="absolute top-0 right-0 m-2 backdrop-blur-xs backdrop-brightness-105 shadow rounded-2xl z-50">
+                                <button
+                                    class="btn btn-circle tooltip tooltip-left bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200"
+                                    classList={{
+                                        hidden:
+                                            params["id"] === undefined ||
+                                            !props.parent_path.includes(
+                                                "endpoints",
+                                            ),
+                                    }}
+                                    onClick={() => {
+                                        navigate(
+                                            location.pathname.includes("modify")
+                                                ? `/endpoints/${params["id"]!}/test`
+                                                : `/endpoints/${params["id"]!}/modify`,
+                                            {
+                                                replace: false,
+                                                scroll: false,
+                                            },
+                                        );
+                                    }}
+                                    data-tip={
+                                        location.pathname.includes("modify")
+                                            ? "Test endpoint"
+                                            : "Modify endpoint"
+                                    }
+                                >
+                                    <span class="material-symbols-outlined">
+                                        {location.pathname.includes("modify")
+                                            ? "science"
+                                            : "data_object"}
+                                    </span>
+                                </button>
+                                <A
+                                    class="btn btn-circle bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200"
+                                    href={props.parent_path}
+                                    noScroll
+                                    replace={false}
+                                >
+                                    <span class="material-symbols-outlined">
+                                        close
+                                    </span>
+                                </A>
+                            </div>
+
+                            <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none">
+                                <Show when={expected_children() !== undefined}>
+                                    {expected_children()}
+                                </Show>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Portal>
+        </>
+    );
+};

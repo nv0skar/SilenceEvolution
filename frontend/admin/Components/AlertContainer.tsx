@@ -1,7 +1,13 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { Show, type Accessor, type Setter } from "solid-js";
+import {
+    createEffect,
+    createSignal,
+    Show,
+    type Accessor,
+    type Setter,
+} from "solid-js";
 
 export interface AlertStruct {
     value: string;
@@ -9,29 +15,59 @@ export interface AlertStruct {
 }
 
 export default (props: {
-    get_alert: Accessor<AlertStruct | undefined>;
-    set_alert: Setter<AlertStruct | undefined>;
+    alert_signals: [
+        Accessor<AlertStruct | undefined>,
+        Setter<AlertStruct | undefined>,
+    ];
+    hide_timeout?: number | undefined;
 }) => {
+    const [get_alert, set_alert] = [
+        () => props.alert_signals[0](),
+        (value: AlertStruct | undefined) => props.alert_signals[1](value),
+    ];
+
+    const [debounced_alert, set_debounced_alert] = createSignal<
+        AlertStruct | undefined
+    >(get_alert());
+
+    createEffect(() => {
+        if (props.hide_timeout !== undefined) {
+            setTimeout(() => {
+                set_alert(undefined);
+            }, props.hide_timeout);
+        }
+    });
+
+    createEffect(() => {
+        if (get_alert() !== undefined) set_debounced_alert(get_alert());
+        else
+            setTimeout(() => {
+                set_debounced_alert(get_alert());
+            }, 500);
+    });
+
     return (
         <>
             <div
-                class="flex flex-col bg-base-300/50 min-h-12 border border-base-300 text-info text-center justify-center items-center backdrop-blur-xs shadow-xl rounded-box my-2 p-2 cursor-pointer transition transition-discrete duration-500"
+                class="flex flex-col bg-base-200/75 min-h-12 border border-base-300 text-info not-dark:text-black text-center justify-center items-center backdrop-blur-xs shadow-sm rounded-box my-2 p-2 cursor-pointer transition-all ease-out transition-discrete duration-500"
                 classList={{
-                    "hidden opacity-0 pointer-events-none":
-                        props.get_alert() === undefined,
+                    "invisible opacity-0 min-h-0! h-0! my-0! p-0! *:opacity-0 *:scale-25 overflow-hidden pointer-events-none":
+                        get_alert() === undefined,
                     "bg-red-800 border-red-500 text-white":
-                        props.get_alert()?.is_error,
+                        get_alert()?.is_error,
                 }}
-                onClick={() => props.set_alert(undefined)}
+                onClick={() => set_alert(undefined)}
             >
-                <Show when={props.get_alert()?.is_error}>
+                <div class="transition-all duration-500">
+                    <Show when={debounced_alert()?.is_error}>
+                        <span class="text-sm font-semibold">
+                            An error has occurred.{" "}
+                        </span>
+                    </Show>
                     <span class="text-sm font-semibold">
-                        An error has occurred.{" "}
+                        {debounced_alert()?.value}
                     </span>
-                </Show>
-                <span class="text-sm font-semibold">
-                    {props.get_alert()?.value}
-                </span>
+                </div>
             </div>
         </>
     );

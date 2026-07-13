@@ -1,7 +1,14 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-export interface EndpointStruct {
+import { createContext } from "solid-js";
+
+export type EndpointByFile = {
+    path: string | null;
+    endpoint: Endpoint;
+};
+
+export interface Endpoint {
     id?: string;
     database?: string;
     route: string;
@@ -23,3 +30,11 @@ export interface EndpointStruct {
     allowed_roles: Array<string>;
     auto_generated: boolean;
 }
+
+export const EndpointsContext = createContext<{
+    endpoints_data: Array<{
+        path: string | null;
+        endpoint: Endpoint;
+    }>;
+    refetch_endpoints: Function;
+}>();

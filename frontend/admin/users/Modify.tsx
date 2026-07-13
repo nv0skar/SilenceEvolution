@@ -1,10 +1,9 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type UserStruct } from "./User.tsx";
-import { UsersContext } from "./Users.tsx";
+import { type User, UsersContext } from "@admin/users";
 
-import { confirm_btn } from "./Components/Button.tsx";
+import { confirm_btn } from "@admin/components/Button.tsx";
 
 import { createSignal, Show, useContext } from "solid-js";
 
@@ -27,7 +26,7 @@ export default (_: RouteSectionProps) => {
 
     const user_data =
         id !== undefined
-            ? users_context.users_data.filter((user) => {
+            ? users_context.users.filter((user) => {
                   return user.user_id == parseInt(id);
               })[0]!
             : undefined;
@@ -42,16 +41,16 @@ export default (_: RouteSectionProps) => {
             email: form_data["email"]?.toString(),
             role: form_data["role"]?.toString(),
             password: form_data["password"]?.toString(),
-        } as UserStruct;
+        } as User;
 
         if (user_data) {
             for (const field in req) {
-                const value = req[field as keyof UserStruct];
+                const value = req[field as keyof User];
                 if (
                     field !== "role" &&
                     (value === undefined || value?.toString().length === 0)
                 )
-                    delete req[field as keyof UserStruct];
+                    delete req[field as keyof User];
             }
         }
 
@@ -72,7 +71,7 @@ export default (_: RouteSectionProps) => {
             return;
         }
 
-        users_context.refetch_users();
+        users_context.refetch();
 
         navigate("/users", {
             replace: false,
@@ -89,7 +88,7 @@ export default (_: RouteSectionProps) => {
         if (!res.ok) console.clear();
 
         if (res.status === 200) {
-            users_context.refetch_users();
+            users_context.refetch();
 
             navigate("/users", {
                 replace: false,

@@ -1,9 +1,11 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { EndpointsContext } from "./Endpoints.tsx";
+import { EndpointsContext } from "@admin/endpoints";
 
-import AlertBox, { type AlertStruct } from "./Components/AlertContainer.tsx";
+import AlertBox, {
+    type AlertStruct,
+} from "@admin/components/AlertContainer.tsx";
 
 import {
     createEffect,
@@ -200,6 +202,11 @@ export default (_: RouteSectionProps) => {
             time: res.headers.get("Date")!,
             body: JSON.stringify(body, null, "\t"),
         });
+
+        response_body_element!.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+        });
     };
 
     // Load JSON grammar.
@@ -242,10 +249,6 @@ export default (_: RouteSectionProps) => {
         set_alert({
             value: `Help: test the endpoint ${id} on this page, make sure to fill the request's parameters and body as required. Note that the current endpoint ${endpoint_data?.endpoint.require_auth ? "requires authentication" : "doesn't require authentication."}`,
         });
-
-        setTimeout(() => {
-            if (!get_alert()!.is_error) set_alert(undefined);
-        }, 5000);
     });
 
     return (
@@ -263,8 +266,8 @@ export default (_: RouteSectionProps) => {
                     fallback={<span>The endpoint {id} doesn't exist.</span>}
                 >
                     <AlertBox
-                        get_alert={get_alert}
-                        set_alert={set_alert}
+                        alert_signals={[get_alert, set_alert]}
+                        hide_timeout={!get_alert()?.is_error ? 5000 : undefined}
                     ></AlertBox>
 
                     <form
@@ -299,7 +302,7 @@ export default (_: RouteSectionProps) => {
                         </fieldset>
 
                         <details
-                            class="collapse bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
+                            class="collapse bg-white/50 dark:bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
                             classList={{
                                 hidden:
                                     endpoint_schema.state!.route_params
@@ -344,7 +347,7 @@ export default (_: RouteSectionProps) => {
                         </details>
 
                         <details
-                            class="collapse bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
+                            class="collapse bg-white/50 dark:bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
                             open
                         >
                             <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-200">
@@ -433,7 +436,7 @@ export default (_: RouteSectionProps) => {
                             <div class="overflow-auto overscroll-contain">
                                 <div class="grid grid-cols-1 box-border min-w-0 font-mono **:text-sm **:leading-6 overflow-hidden">
                                     <div
-                                        class="bg-base-100/25 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0 pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
+                                        class="bg-base-200/75 p-3 border border-base-300 col-start-1 row-start-1 rounded-2xl w-full h-full inset-0  backdrop-brightness-125 backdrop-blur-xs pointer-events-none whitespace-pre-wrap wrap-break-word z-10 min-w-0 overflow-hidden"
                                         ref={req_body_highlighted_element}
                                     ></div>
                                     <textarea
@@ -502,7 +505,7 @@ export default (_: RouteSectionProps) => {
                         </button>
                     </div>
                     <Show when={response() !== undefined}>
-                        <div class="flex flex-col gap-1.5 bg-base-100/25 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96 backdrop-blur shadow-xl rounded-box my-2 p-4">
+                        <div class="flex flex-col gap-1.5 bg-base-200/75 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96  backdrop-brightness-125 backdrop-blur-xs shadow-xl rounded-box my-2 p-4">
                             <span class="text-xs">
                                 Response from{" "}
                                 <span class="font-mono">

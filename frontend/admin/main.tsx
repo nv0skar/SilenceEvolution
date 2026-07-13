@@ -1,14 +1,14 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import Admin from "./Admin.tsx";
+import Admin from "@admin/Admin.tsx";
 
-import Endpoints from "./Endpoints.tsx";
-import ManageEndpoint from "./ManageEndpoint.tsx";
-import TestEndpoint from "./TestEndpoint.tsx";
+import ListEndpoint from "@admin/endpoints/List.tsx";
+import ModifyEndpoint from "@admin/endpoints/Modify.tsx";
+import TestEndpoint from "@admin/endpoints/Test.tsx";
 
-import Users from "./Users.tsx";
-import ManageUser from "./ManageUser.tsx";
+import ListUsers from "@admin/users/List.tsx";
+import ModifyUser from "@admin/users/Modify.tsx";
 
 import Config from "./Config.tsx";
 
@@ -20,19 +20,19 @@ const root = document.getElementById("root");
 render(
     () => (
         <Router root={Admin} base="/admin">
-            <Route path="/*" component={Endpoints} />
-            <Route path="/endpoints" component={Endpoints}>
+            <Route path="/*" component={ListEndpoint} />
+            <Route path="/endpoints" component={ListEndpoint}>
                 <Route path="/*" />
                 <Route path="/:id">
-                    <Route path="/modify" component={ManageEndpoint} />
+                    <Route path="/modify" component={ModifyEndpoint} />
                     <Route path="/test" component={TestEndpoint} />
                 </Route>
-                <Route path="/new" component={ManageEndpoint} />
+                <Route path="/new" component={ModifyEndpoint} />
             </Route>
-            <Route path="/users" component={Users}>
+            <Route path="/users" component={ListUsers}>
                 <Route path="/*" />
-                <Route path="/:id" component={ManageUser} />
-                <Route path="/new" component={ManageUser} />
+                <Route path="/:id" component={ModifyUser} />
+                <Route path="/new" component={ModifyUser} />
             </Route>
             <Route path="/config" component={Config} />
         </Router>

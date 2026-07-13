@@ -1,7 +1,11 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "./Admin.tsx";
+import { SessionContext } from "@admin/Admin.tsx";
+
+import AlertBox, {
+    type AlertStruct,
+} from "@admin/components/AlertContainer.tsx";
 
 import {
     children,
@@ -44,7 +48,9 @@ export default (props: RouteSectionProps) => {
 
     if (!session_context) throw new Error("Can't find user's context");
 
-    const [error, set_error] = createSignal<string | undefined>(undefined);
+    const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
+        undefined,
+    );
 
     // Load config.
     const [config, { refetch }] = createResource(
@@ -152,7 +158,7 @@ export default (props: RouteSectionProps) => {
                 error: string;
             };
 
-            set_error(data.error);
+            set_alert({ value: data.error, is_error: true });
 
             return;
         }
@@ -172,6 +178,12 @@ export default (props: RouteSectionProps) => {
         }),
     );
 
+    createEffect(() => {
+        set_alert({
+            value: "Some changes may require a manual server restart.",
+        });
+    });
+
     return (
         <>
             <div>
@@ -180,27 +192,18 @@ export default (props: RouteSectionProps) => {
                 </div>
                 <Show when={!config.loading}>
                     <div class="grid gap gap-2 py-8">
-                        <div class="bg-base-200 backdrop-blur shadow rounded-box my-2 p-2 text-center">
-                            <p class="font-semibold">
-                                Some changes may require a manual server
-                                restart.
-                            </p>
-                        </div>
-                        <Show when={error() != undefined}>
-                            <div
-                                class="bg-red-800 border-red-400 backdrop-blur shadow-xl rounded-box my-2 p-2 text-center cursor-pointer"
-                                onClick={() => set_error(undefined)}
-                            >
-                                <p class="text-sm font-semibold">
-                                    An error has occurred. {error()!}
-                                </p>
-                            </div>
-                        </Show>
+                        <AlertBox
+                            alert_signals={[get_alert, set_alert]}
+                            hide_timeout={
+                                !get_alert()?.is_error ? 5000 : undefined
+                            }
+                        ></AlertBox>
+
                         <form
                             id="form"
                             class="[&_span]:mb-1"
                             onInput={(event) => {
-                                set_error(undefined);
+                                set_alert(undefined);
 
                                 let form = event.currentTarget;
                                 let submit = document.getElementById("submit");
@@ -248,7 +251,7 @@ export default (props: RouteSectionProps) => {
                             </fieldset>
 
                             <details
-                                class="collapse bg-base-200/20 border border-base-300 rounded-2xl mt-3 my-1"
+                                class="collapse bg-white/50 dark:bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
                                 open
                             >
                                 <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
@@ -328,7 +331,7 @@ export default (props: RouteSectionProps) => {
                             </details>
 
                             <details
-                                class="collapse bg-base-200/20 border border-base-300 rounded-2xl mt-3 my-1"
+                                class="collapse bg-white/50 dark:bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1"
                                 open
                             >
                                 <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
@@ -441,7 +444,7 @@ export default (props: RouteSectionProps) => {
                                         </label>
                                     </fieldset>
 
-                                    <details class="collapse bg-base-200/20 border border-base-300 rounded-2xl mt-3 my-1">
+                                    <details class="collapse bg-white/50 dark:bg-base-100/20 border border-base-300 rounded-2xl mt-3 my-1">
                                         <summary class="collapse-title font-semibold transition duration-200 hover:bg-base-300">
                                             Internal tables
                                         </summary>
@@ -531,7 +534,7 @@ export default (props: RouteSectionProps) => {
                             <button
                                 id="submit"
                                 type="submit"
-                                class="btn btn-disabled"
+                                class="btn hover:btn-success btn-disabled"
                                 onClick={update_config}
                             >
                                 Update

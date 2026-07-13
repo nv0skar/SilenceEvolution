@@ -12,13 +12,13 @@ export const confirm_btn = (callback: Function) => {
 
             setTimeout(() => {
                 button.setAttribute("data-confirmed", "false");
-                button.classList.add("animate-pulse");
+                button.classList.remove("animate-pulse");
                 button.innerText = current_text;
             }, 5000);
 
             button.setAttribute("data-confirmed", "true");
             button.classList.add("animate-pulse");
-            button.innerText = `${current_text} (confirm)`;
+            button.innerText = "Confirm";
         }
     };
 };

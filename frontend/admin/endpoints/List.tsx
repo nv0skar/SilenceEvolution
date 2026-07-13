@@ -1,12 +1,17 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "./Admin.tsx";
-import { type EndpointStruct } from "./Endpoint.tsx";
+import { SessionContext } from "@admin/Admin.tsx";
+import {
+    type Endpoint,
+    type EndpointByFile,
+    EndpointsContext,
+} from "@admin/endpoints";
+
+import Modal from "@admin/components/Modal.tsx";
 
 import {
     children,
-    createContext,
     createEffect,
     createResource,
     createSignal,
@@ -16,61 +21,44 @@ import {
     useContext,
 } from "solid-js";
 
-import {
-    A,
-    useLocation,
-    useNavigate,
-    useParams,
-    type RouteSectionProps,
-} from "@solidjs/router";
+import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
+
+import { filter, pipe, sortBy } from "remeda";
 
 import { loadGrammar } from "@arborium/arborium";
 
-export const EndpointsContext = createContext<{
-    endpoints_data: Array<{
-        path: string | null;
-        endpoint: EndpointStruct;
-    }>;
-    refetch_endpoints: Function;
-}>();
 export default (props: RouteSectionProps) => {
     const session_context = useContext(SessionContext);
 
     if (!session_context) throw new Error("Can't find user's context");
 
-    const location = useLocation();
-
     const navigate = useNavigate();
-
-    const params = useParams();
 
     // Full data.
     const [get_full_data, set_full_data] = createSignal<boolean>(false);
 
+    // Sort state.
+    const [sort, set_sort] = createSignal<{
+        id: keyof Endpoint;
+        order: "asc" | "desc";
+    }>({ id: "id", order: "asc" });
+
     // Load endpoints.
     const [endpoints, { refetch }] = createResource(
-        async (): Promise<
-            Array<{
-                path: string | null;
-                endpoint: EndpointStruct;
-            }>
-        > => {
+        async (): Promise<Array<EndpointByFile>> => {
             const res = await fetch("/api/internal/endpoints");
 
             if (!res.ok) console.clear();
 
             if (res.status === 200) {
                 const data = (await res.json()) as Array<
-                    Array<string | Array<EndpointStruct>>
+                    Array<string | Array<Endpoint>>
                 >;
 
-                let endpoints: Array<{
-                    path: string | null;
-                    endpoint: EndpointStruct;
-                }> = new Array();
+                let endpoints: Array<EndpointByFile> = new Array();
 
                 for (const endpoints_path of data) {
-                    for (const endpoint of endpoints_path[1] as Array<EndpointStruct>) {
+                    for (const endpoint of endpoints_path[1] as Array<Endpoint>) {
                         // Instantiate endpoint in order to define a fixed order.
                         endpoints.push({
                             path: endpoints_path[0] as string | null,
@@ -89,17 +77,21 @@ export default (props: RouteSectionProps) => {
                                 inject_auth_metadata:
                                     endpoint.inject_auth_metadata,
                                 auto_generated: endpoint.auto_generated,
-                            } as EndpointStruct,
-                        });
+                            },
+                        } as EndpointByFile);
                     }
                 }
 
                 return endpoints;
             } else {
-                return [];
+                return new Array();
             }
         },
     );
+
+    const [endpoints_list, set_endpoints_list] = createSignal<
+        Array<EndpointByFile>
+    >(new Array());
 
     // Load SQL grammar.
     const [sql_grammar] = createResource(async () => {
@@ -118,12 +110,61 @@ export default (props: RouteSectionProps) => {
         }),
     );
 
+    createEffect(() => {
+        if (endpoints() !== undefined)
+            set_endpoints_list(
+                pipe(
+                    endpoints()!,
+                    sortBy([
+                        (endpoint_by_file) =>
+                            endpoint_by_file.endpoint[sort().id]!,
+                        sort().order,
+                    ]),
+                ),
+            );
+    });
+
+    createEffect(() => {
+        if (endpoints !== undefined)
+            set_endpoints_list(
+                pipe(
+                    endpoints()!,
+                    filter((endpoint_by_file) => {
+                        return (
+                            get_full_data() ||
+                            (endpoint_by_file.endpoint.execute! !== null &&
+                                !endpoint_by_file.endpoint.version?.includes(
+                                    "internal",
+                                ))
+                        );
+                    }),
+                    sortBy([
+                        (endpoint_by_file) =>
+                            endpoint_by_file.endpoint[sort().id]!,
+                        sort().order,
+                    ]),
+                ),
+            );
+    });
+
+    createEffect(() =>
+        set_endpoints_list(
+            pipe(
+                endpoints_list(),
+                sortBy([
+                    (endpoint_by_file) => endpoint_by_file.endpoint[sort().id]!,
+                    sort().order,
+                ]),
+            ),
+        ),
+    );
+
     return (
         <>
             <div>
                 <div class="flex items-center w-full">
-                    <h1 class="text-4xl font-bold">Endpoints</h1>
-                    <div class="flex self-end text-right ml-auto items-center">
+                    <h1 class="text-2xl lg:text-4xl font-bold">Endpoints</h1>
+                    <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
                         <A
                             class="btn text-sm self-end text-right ml-auto"
                             href="/endpoints/new"
@@ -135,8 +176,16 @@ export default (props: RouteSectionProps) => {
                                 Create new endpoint
                             </span>
                         </A>
+                        <button
+                            class="btn text-sm self-end text-right ml-auto"
+                            onClick={refetch}
+                        >
+                            <span class="material-symbols-outlined">
+                                refresh
+                            </span>
+                        </button>
                         <div
-                            class="mx-2 px-2 py-2 btn btn-ghost bg-base-200 border border-base-300 rounded-2xl flex items-baseline-last gap-2"
+                            class="py-2 btn btn-ghost bg-base-200 border border-base-300 flex items-baseline-last gap-2"
                             onClick={(_) => {
                                 set_full_data(!get_full_data());
                             }}
@@ -158,108 +207,62 @@ export default (props: RouteSectionProps) => {
                         </div>
                     </div>
                 </div>
-                <Show when={!endpoints.loading}>
-                    <div
-                        class="fixed top-0 left-0 w-screen h-screen p-4 z-20 backdrop-blur-md backdrop-brightness-90 transition duration-300"
-                        classList={{
-                            "opacity-0 pointer-events-none":
-                                resolved_children() === undefined,
-                        }}
-                    >
-                        <div
-                            class="flex h-screen justify-center items-center"
-                            onClick={() =>
-                                navigate("/endpoints", {
-                                    replace: false,
-                                    scroll: false,
-                                })
-                            }
-                        >
-                            <div
-                                id="modal"
-                                class="relative lg:m-32 w-full min-h-fit max-h-screen px-4 bg-base-100/75 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-300"
-                                classList={{
-                                    "opacity-0 scale-75":
-                                        resolved_children() === undefined,
-                                }}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                }}
-                            >
-                                <div class="absolute top-0 right-0 m-2 z-50">
-                                    <button
-                                        class="btn btn-circle tooltip tooltip-left bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200"
-                                        classList={{
-                                            hidden: params["id"] === undefined,
-                                        }}
-                                        onClick={() => {
-                                            navigate(
-                                                location.pathname.includes(
-                                                    "modify",
-                                                )
-                                                    ? `/endpoints/${params["id"]!}/test`
-                                                    : `/endpoints/${params["id"]!}/modify`,
-                                                {
-                                                    replace: false,
-                                                    scroll: false,
-                                                },
-                                            );
-                                        }}
-                                        data-tip={
-                                            location.pathname.includes("modify")
-                                                ? "Test endpoint"
-                                                : "Modify endpoint"
-                                        }
-                                    >
-                                        <span class="material-symbols-outlined">
-                                            {location.pathname.includes(
-                                                "modify",
-                                            )
-                                                ? "science"
-                                                : "data_object"}
-                                        </span>
-                                    </button>
-                                    <A
-                                        class="btn btn-circle bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200"
-                                        href="/endpoints"
-                                        noScroll
-                                        replace={false}
-                                    >
-                                        <span class="material-symbols-outlined">
-                                            close
-                                        </span>
-                                    </A>
-                                </div>
-
-                                <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none">
-                                    <Show
-                                        when={resolved_children() !== undefined}
-                                    >
-                                        <EndpointsContext.Provider
-                                            value={{
-                                                endpoints_data: endpoints()!,
-                                                refetch_endpoints: refetch,
-                                            }}
-                                        >
-                                            {props.children}
-                                        </EndpointsContext.Provider>
-                                    </Show>
-                                </div>
-                            </div>
+                <Show
+                    when={!endpoints.loading}
+                    fallback={
+                        <div class="flex w-full my-8 justify-center">
+                            <span class="loading loading-spinner loading-xl"></span>
                         </div>
-                    </div>
-                    <div class="overflow-x-auto">
+                    }
+                >
+                    <Modal parent_path="/endpoints">
+                        <EndpointsContext.Provider
+                            value={{
+                                endpoints_data: endpoints()!,
+                                refetch_endpoints: refetch,
+                            }}
+                        >
+                            {props.children}
+                        </EndpointsContext.Provider>
+                    </Modal>
+
+                    <div class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95">
                         <div class="table text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
-                                <div class="table-row font-bold bg-base-200 [&_div]:w-auto [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                <div class="table-row font-bold bg-base-300 [&_div]:w-auto [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
                                     <div class="table-cell rounded-tl-xl!"></div>
-                                    <div class="table-cell">ID</div>
-                                    <div class="table-cell">Route</div>
-
+                                    <div
+                                        class="table-cell"
+                                        onClick={(_) => {
+                                            set_sort({
+                                                id: "id",
+                                                order: "asc",
+                                            });
+                                        }}
+                                    >
+                                        ID
+                                    </div>
+                                    <div
+                                        class="table-cell"
+                                        onClick={(_) => {
+                                            set_sort({
+                                                id: "route",
+                                                order: "asc",
+                                            });
+                                        }}
+                                    >
+                                        Route
+                                    </div>
                                     <div
                                         class="table-cell"
                                         classList={{
                                             "hidden!": !get_full_data(),
+                                        }}
+                                        onClick={(_) => {
+                                            set_sort({
+                                                id: "description",
+                                                order: "asc",
+                                            });
                                         }}
                                     >
                                         Description
@@ -320,26 +323,9 @@ export default (props: RouteSectionProps) => {
                                 </div>
                             </div>
                             <div class="table-row-group [&>div:nth-of-type(even)]:bg-base-200 [&>div]:hover:bg-base-300/80! [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
-                                <Index
-                                    each={endpoints()?.sort(
-                                        (endpoint_pair_1, endpoint_pair_2) => {
-                                            return endpoint_pair_1.endpoint.id!.localeCompare(
-                                                endpoint_pair_2.endpoint.id!,
-                                            );
-                                        },
-                                    )}
-                                >
+                                <Index each={endpoints_list()}>
                                     {(endpoint, ix) => (
-                                        <Show
-                                            when={
-                                                get_full_data() ||
-                                                (endpoint().endpoint
-                                                    .execute! !== null &&
-                                                    !endpoint().endpoint.version?.includes(
-                                                        "internal",
-                                                    ))
-                                            }
-                                        >
+                                        <>
                                             <div
                                                 class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:align-middle"
                                                 // @ts-ignore
@@ -518,10 +504,10 @@ export default (props: RouteSectionProps) => {
                                                     classList={{
                                                         "text-success":
                                                             endpoint().endpoint
-                                                                .inject_auth_metadata,
+                                                                .require_auth,
                                                         "text-error":
                                                             !endpoint().endpoint
-                                                                .inject_auth_metadata,
+                                                                .require_auth,
                                                     }}
                                                 >
                                                     {endpoint().endpoint
@@ -643,7 +629,7 @@ export default (props: RouteSectionProps) => {
                                                     </button>
                                                 </li>
                                             </ul>
-                                        </Show>
+                                        </>
                                     )}
                                 </Index>
                             </div>

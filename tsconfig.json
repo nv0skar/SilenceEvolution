@@ -43,6 +43,10 @@
         "sourceMap": true,
         "incremental": true,
         "tsBuildInfoFile": "./.tsbuildinfo",
+        "paths": {
+            "@admin/*": ["./frontend/admin/*"],
+            "@auth/*": ["./frontend/auth/*"],
+        },
     },
     "include": ["frontend/**/*"],
     "exclude": [

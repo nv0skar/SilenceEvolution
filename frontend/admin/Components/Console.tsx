@@ -39,15 +39,24 @@ export default () => {
     return (
         <>
             <Portal>
-                <div class="overscroll-none antialiased fixed flex flex-col w-screen h-screen inset-0 z-50 pointer-events-none">
+                <div class="overscroll-none antialiased fixed flex flex-col w-screen h-screen inset-0 z-50 **:transition-all **:transition-discrete **:ease-in-out **:duration-1000 pointer-events-none">
                     <div class="w-full flex justify-end">
                         <div
-                            class="relative w-2 h-screen pointer-coarse:h-[90vh] min-h-[20vh] max-h-screen pointer-coarse:max-h-[90vh] scale-x-[500] opacity-0 resize-y overflow-hidden origin-bottom-right pointer-events-auto cursor-ns-resize [clip-path:inset(calc(100%-24px)_0_0_0)]"
+                            class="relative w-2 h-screen pointer-coarse:h-[90vh] min-h-[5vh] max-h-screen pointer-coarse:max-h-[90vh] scale-x-[500] opacity-0 resize-y overflow-hidden origin-bottom-right pointer-events-auto cursor-ns-resize active:transition-none [clip-path:inset(calc(100%-24px)_0_0_0)]"
+                            onClick={(_) => {
+                                if (
+                                    root_pseudocontainer!.style.height ===
+                                        undefined ||
+                                    root_pseudocontainer!.clientHeight >=
+                                        window.innerHeight
+                                )
+                                    root_pseudocontainer!.style.height = "80vh";
+                            }}
                             ref={root_pseudocontainer}
                         ></div>
                     </div>
 
-                    <div class="flex flex-col min-h-0 h-full w-full bg-white/20 dark:bg-black/20 opacity-90 hover:bg-white/50 pointer-coarse:bg-white/50 dark:hover:bg-black/50 dark:pointer-coarse:bg-black/50 hover:opacity-100 border-t-2 border-base-300 backdrop-blur-sm hover:backdrop-blur-xl backdrop-brightness-90 rounded-t-4xl transition duration-200 pointer-events-auto">
+                    <div class="flex flex-col min-h-0 h-full w-full bg-white/20 dark:bg-black/20 opacity-90 hover:bg-white/50 pointer-coarse:bg-white/50 dark:hover:bg-black/50 dark:pointer-coarse:bg-black/50 hover:opacity-100 border-t-2 border-base-300 backdrop-blur-sm hover:backdrop-blur-xl backdrop-brightness-90 rounded-t-4xl duration-200! pointer-events-auto">
                         <div class="absolute top-1 left-1/2 -translate-x-1/2 -translate-y-4 w-32 h-1.25 bg-zinc-500 rounded-full pointer-coarse:hidden pointer-events-none"></div>
 
                         <div class="flex flex-col gap-2 h-full px-6 pt-4 text-sm font-mono">
@@ -73,7 +82,7 @@ export default () => {
                                 </div>
                                 <div class="flex gap-3 self-end text-right ml-auto items-center">
                                     <button
-                                        class="hover:scale-105 transition duration-200"
+                                        class="hover:scale-105 duration-200!"
                                         onClick={() => {
                                             console_stream!.innerHTML = "";
                                         }}
@@ -81,7 +90,7 @@ export default () => {
                                         CLEAR
                                     </button>
                                     <button
-                                        class="align-middle hover:scale-105 transition duration-200"
+                                        class="align-middle hover:scale-105 duration-200!"
                                         onClick={() => {
                                             root_pseudocontainer!.style.height =
                                                 "100vh";
@@ -92,7 +101,7 @@ export default () => {
                                         </span>
                                     </button>
                                     <button
-                                        class="align-middle hover:scale-105 transition duration-200"
+                                        class="align-middle hover:scale-105 duration-200!"
                                         onClick={() => {
                                             root_pseudocontainer!.style.height =
                                                 "0vh";

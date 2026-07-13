@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
             minify: isProd,
             cssMinify: isProd,
             cssCodeSplit: true,
-            sourcemap: "hidden",
+            sourcemap: !isProd,
             emptyOutDir: true,
             rollupOptions: {
                 input: {

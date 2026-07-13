@@ -24,7 +24,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "watch": "vite build --watch",
+        "watch": "vite build --mode debug --watch",
         "serve": "vite serve"
     }
 }

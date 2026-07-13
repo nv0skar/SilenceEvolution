@@ -1,12 +1,13 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "./Admin.tsx";
-import { type UserStruct } from "./User.tsx";
+import { SessionContext } from "@admin/Admin.tsx";
+import { fetcher, UsersContext } from "@admin/users";
+
+import Modal from "@admin/components/Modal";
 
 import {
     children,
-    createContext,
     createEffect,
     createResource,
     Index,
@@ -17,13 +18,6 @@ import {
 
 import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
 
-import { pipe, map } from "remeda";
-
-export const UsersContext = createContext<{
-    users_data: Array<UserStruct>;
-    refetch_users: Function;
-}>();
-
 export default (props: RouteSectionProps) => {
     const session_context = useContext(SessionContext);
 
@@ -32,29 +26,7 @@ export default (props: RouteSectionProps) => {
     const navigate = useNavigate();
 
     // Load users.
-    const [users, { refetch }] = createResource(
-        async (): Promise<Array<UserStruct>> => {
-            const res = await fetch("/api/internal/admin/users");
-
-            if (!res.ok) console.clear();
-
-            if (res.status === 200) {
-                let data = (await res.json()) as Array<UserStruct>;
-
-                data = pipe(
-                    data,
-                    map((user) => {
-                        if (user.role?.length === 0) delete user.role;
-                        return user;
-                    }),
-                );
-
-                return data;
-            } else {
-                return [];
-            }
-        },
-    );
+    const [users, { refetch }] = createResource(fetcher);
 
     const resolved_children = children(() => props.children);
 
@@ -73,7 +45,15 @@ export default (props: RouteSectionProps) => {
             <div>
                 <div class="flex items-center w-full">
                     <h1 class="text-4xl font-bold">Users</h1>
-                    <div class="flex self-end text-right ml-auto items-center">
+                    <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
+                        <button
+                            class="btn text-sm self-end text-right ml-auto"
+                            onClick={refetch}
+                        >
+                            <span class="material-symbols-outlined">
+                                refresh
+                            </span>
+                        </button>
                         <A
                             class="btn text-sm self-end text-right ml-auto"
                             href="/users/new"
@@ -85,65 +65,29 @@ export default (props: RouteSectionProps) => {
                         </A>
                     </div>
                 </div>
-                <Show when={!users.loading}>
-                    <div
-                        class="fixed top-0 left-0 w-screen h-screen p-4 z-20 backdrop-blur-md backdrop-brightness-90 transition duration-300"
-                        classList={{
-                            "opacity-0 pointer-events-none":
-                                resolved_children() === undefined,
-                        }}
-                    >
-                        <div
-                            class="flex h-screen justify-center items-center"
-                            onClick={() =>
-                                navigate("/users", {
-                                    replace: false,
-                                    scroll: false,
-                                })
-                            }
-                        >
-                            <div
-                                id="modal"
-                                class="relative lg:m-32 w-full h-fit px-4 bg-base-100/75 backdrop-blur-xs border border-base-300 rounded-2xl  shadow-lg transition duration-300"
-                                classList={{
-                                    "opacity-0 scale-75":
-                                        resolved_children() === undefined,
-                                }}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                }}
-                            >
-                                <A
-                                    class="absolute top-0 right-0 m-2 btn btn-circle bg-base-300/50 border-[0.5px] border-base-200 backdrop-blur-xs shadow-xs scale-90 hover:bg-base-200 z-50"
-                                    href="/users"
-                                    noScroll
-                                    replace={false}
-                                >
-                                    <span class="material-symbols-outlined">
-                                        close
-                                    </span>
-                                </A>
-                                <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none">
-                                    <Show
-                                        when={resolved_children() !== undefined}
-                                    >
-                                        <UsersContext.Provider
-                                            value={{
-                                                users_data: users()!,
-                                                refetch_users: refetch,
-                                            }}
-                                        >
-                                            {props.children}
-                                        </UsersContext.Provider>
-                                    </Show>
-                                </div>
-                            </div>
+                <Show
+                    when={!users.loading}
+                    fallback={
+                        <div class="flex w-full my-8 justify-center">
+                            <span class="loading loading-spinner loading-xl"></span>
                         </div>
-                    </div>
-                    <div class="overflow-x-auto">
+                    }
+                >
+                    <Modal parent_path="/users">
+                        <UsersContext.Provider
+                            value={{
+                                users: users()!,
+                                refetch: refetch,
+                            }}
+                        >
+                            {props.children}
+                        </UsersContext.Provider>
+                    </Modal>
+
+                    <div class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95">
                         <div class="table text-sm table-auto border-collapse my-6">
                             <div class="table-header-group border-b-2 border-b-base-300">
-                                <div class="table-row font-bold bg-base-200 [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
+                                <div class="table-row font-bold bg-base-300 [&_div]:p-4 [&_div]:align-middle [&_div]:text-left [&_div]:btn [&_div]:btn-ghost [&_div]:rounded-none">
                                     <div class="table-cell rounded-tl-xl! pl-8!">
                                         ID
                                     </div>
