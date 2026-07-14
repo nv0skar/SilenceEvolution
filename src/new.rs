@@ -153,6 +153,8 @@ pub async fn new_project(
     {
         create_dir(project_path.join("endpoints")).await?;
 
+        create_dir(project_path.join("tests")).await?;
+
         create_dir(project_path.join(if prefer_web_directory {
             "web"
         } else {

@@ -3,20 +3,24 @@
 
 pub mod app_cx;
 pub mod config;
+pub mod endpoint_test;
 pub mod internal_endpoints;
 pub mod new;
 pub mod simple_endpoint;
 pub mod static_service;
 
 pub use app_cx::*;
+pub use endpoint_test::*;
 pub use internal_endpoints::*;
 pub use new::*;
 pub use simple_endpoint::*;
 pub use static_service::*;
 
 use std::any::{Any, TypeId};
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::env::current_dir;
+use std::fmt::Debug;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -31,6 +35,7 @@ use rustyrosetta::*;
 use anyhow::{Result, anyhow, bail};
 use async_trait::*;
 use bytes::Bytes as ConnBytes;
+use chrono::Utc;
 use compact_str::*;
 use derive_builder::*;
 use derive_more::Constructor;
@@ -42,12 +47,12 @@ use hyper::Request;
 use hyper::{Response, StatusCode};
 use hyper_tungstenite::*;
 use rust_embed_for_web::*;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use struct_patch::*;
 use tokio::{
     fs::{create_dir, create_dir_all, read, read_dir, try_exists, write},
-    sync::{OnceCell, RwLock},
+    sync::{OnceCell, RwLock, RwLockReadGuard},
 };
 use tower::Service;
 use tracing::*;

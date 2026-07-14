@@ -26,13 +26,15 @@ use config::*;
 
 use waveless_compiler::{COMPILER_CX, CompilerCx, discovery::*};
 
-pub type SimpleEndpointsByFile = CheapVec<(Option<PathBuf>, CheapVec<SimpleEndpoint>)>;
+pub type ManyByFile<T> = CheapVec<(Option<PathBuf>, CheapVec<T>)>;
+
 #[derive(Constructor, Getters, Debug)]
 #[getset(get = "pub")]
 pub struct AppCx {
     config: RwLock<Config>,
     #[getset(skip)]
-    simple_endpoints_by_file: RwLock<SimpleEndpointsByFile>,
+    simple_endpoints_by_file: RwLock<ManyByFile<SimpleEndpoint>>,
+    endpoint_tests_by_file: RwLock<ManyByFile<EndpointTest>>,
     workspace_root: PathBuf,
 }
 
@@ -105,13 +107,32 @@ impl AppCx {
         };
 
         // Loads user-defined endpoints (Borrowed from the `waveless_compiler`).
-        let endpoints = Self::get_simple_endpoints_files()
+        let endpoints_by_file = Self::load_from_dir::<_, SimpleEndpoint>("endpoints")
+            .await?
+            .unwrap_or_default();
+
+        // Check whether an endpoint has been auto-generated.
+        for (path, endpoints) in &endpoints_by_file {
+            for endpoint in endpoints {
+                if *endpoint.auto_generated() {
+                    bail!(
+                        "The endpoint `{}` from file `{}` cannot be marked as auto-generated.",
+                        endpoint.id(),
+                        path.to_owned().unwrap().display()
+                    );
+                }
+            }
+        }
+
+        // Loads user's tests.
+        let tests_by_file = Self::load_from_dir::<_, EndpointTest>("tests")
             .await?
             .unwrap_or_default();
 
         Ok(Some(Self {
             config: RwLock::new(config),
-            simple_endpoints_by_file: RwLock::new(endpoints),
+            simple_endpoints_by_file: RwLock::new(endpoints_by_file),
+            endpoint_tests_by_file: RwLock::new(tests_by_file),
             workspace_root,
         }))
     }
@@ -153,20 +174,22 @@ impl AppCx {
             .set_cx();
         }
 
+        // Adds internal endpoints.
+        let mut endpoints = APP_INTERNAL_ENDPOINTS.to_owned(); // This can fail, as the endpoints might be invalid.
+
         // Converts user-defined endpoints.
         let simple_endpoints = self.simple_endpoints_by_file.read().await;
 
-        let mut endpoints = waveless_commons::endpoint::Endpoints::new(
-            simple_endpoints
-                .iter()
-                .map(|(_, endpoints)| endpoints.to_owned())
-                .flatten()
-                .map(|endpoint| -> waveless_commons::endpoint::Endpoint { endpoint.into() })
-                .collect::<CheapVec<waveless_commons::endpoint::Endpoint>>(),
-        )?; // This can fail, as the endpoints might be invalid.
-
-        // Adds internal endpoints.
-        endpoints.merge(APP_INTERNAL_ENDPOINTS.to_owned())?;
+        endpoints.merge(
+            waveless_commons::endpoint::Endpoints::new(
+                simple_endpoints
+                    .iter()
+                    .map(|(_, endpoints)| endpoints.to_owned())
+                    .flatten()
+                    .map(|endpoint| -> waveless_commons::endpoint::Endpoint { endpoint.into() })
+                    .collect::<CheapVec<waveless_commons::endpoint::Endpoint>>(),
+            )?, // This could fail, as the user's endpoints might be invalid.
+        )?;
 
         // Discover MySQL schema endpoints.
         let config_guard = self.config.read().await;
@@ -199,163 +222,37 @@ impl AppCx {
         Ok(endpoints)
     }
 
-    /// Loads simple endpoints files from the project's endpoints folder (Borrowed from the `waveless_compiler`).
-    async fn get_simple_endpoints_files() -> Result<Option<SimpleEndpointsByFile>> {
-        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
-        let endpoints_dir = workspace_root.join("endpoints");
-
-        if let Ok(endpoints_dir_exists) = try_exists(&endpoints_dir).await {
-            match endpoints_dir_exists {
-                true => {
-                    let mut endpoints = SimpleEndpointsByFile::new();
-
-                    endpoints.append(&mut Self::walk_simple_endpoints_files(endpoints_dir).await?);
-
-                    debug!("Deserialized user's endpoints: {:#?}", endpoints);
-
-                    Ok(Some(endpoints))
-                }
-                false => {
-                    warn!(
-                        "Endpoints directory (`./endpoints`) cannot be found. Omitting user endpoints..."
-                    );
-
-                    Ok(None)
-                }
-            }
-        } else {
-            error!(
-                "Cannot read from endpoints directory (`./endpoints`). Are you sure you have permissions?"
-            );
-            Ok(None)
-        }
-    }
-
-    /// Recursively walk through all subfolders in the project's endpoints folder.
-    fn walk_simple_endpoints_files(
-        dir: PathBuf,
-    ) -> BoxFuture<'static, Result<SimpleEndpointsByFile>> {
-        Box::pin(async move {
-            let mut endpoints = SimpleEndpointsByFile::new();
-
-            if let Ok(mut endpoints_path) = read_dir(dir).await {
-                while let Ok(Some(endpoint_path)) = endpoints_path.next_entry().await {
-                    let entry_metadata = endpoint_path.metadata().await?;
-                    match entry_metadata.is_dir() {
-                        true => {
-                            // Recurse into that directory.
-                            match Self::walk_simple_endpoints_files(endpoint_path.path()).await {
-                                Ok(inner_endpoints) => {
-                                    endpoints.append(&mut inner_endpoints.to_owned())
-                                }
-                                Err(err) => return Err(err),
-                            }
-                        }
-                        false => {
-                            match read(endpoint_path.path()).await {
-                                Ok(file_buffer) => {
-                                    match serde_json::from_slice::<CheapVec<SimpleEndpoint>>(
-                                        &file_buffer,
-                                    ) {
-                                        Ok(new_endpoints) => {
-                                            // Check whether an endpoint has been auto-generated.
-                                            let mut _new_endpoints_iter = new_endpoints.iter();
-                                            while let Some(endpoint) = _new_endpoints_iter.next() {
-                                                if *endpoint.auto_generated() {
-                                                    bail!(
-                                                        "The endpoint `{}` from file `{}` cannot be marked as auto-generated.",
-                                                        endpoint.id(),
-                                                        endpoint_path.path().display()
-                                                    );
-                                                }
-                                            }
-                                            endpoints
-                                                .push((Some(endpoint_path.path()), new_endpoints))
-                                        }
-                                        Err(err) => {
-                                            Err(anyhow!(
-                                                "Cannot deserialize the endpoints definition file '{}'.%{}",
-                                                endpoint_path.file_name().display(),
-                                                err.to_string()
-                                            ))?;
-                                        }
-                                    };
-                                }
-                                Err(err) => {
-                                    Err(anyhow!(
-                                        "Cannot open the endpoints definition file '{}'.%{}",
-                                        endpoint_path.file_name().display(),
-                                        err.to_string()
-                                    ))?;
-                                }
-                            }
-                        }
+    /// Returns an endpoint given it's id.
+    pub async fn get_endpoint(
+        &self,
+        id: Option<CompactString>,
+        route: Option<CompactString>,
+        exactly_both: bool,
+    ) -> Result<Option<(Option<PathBuf>, SimpleEndpoint)>> {
+        for (target_path, endpoints) in self.get_endpoints().await? {
+            for endpoint in endpoints {
+                if match (id.to_owned(), route.to_owned(), exactly_both) {
+                    (Some(id), None, _) => id == endpoint.id(),
+                    (None, Some(route), _) => route == endpoint.route(),
+                    (Some(id), Some(route), false) => {
+                        id == endpoint.id() || route == endpoint.route()
                     }
-                }
-            }
-
-            debug!("Deserialized user's endpoints: {:#?}", endpoints);
-
-            Ok(endpoints)
-        })
-    }
-
-    /// Sets simple endpoints files from the app's context.
-    async fn set_simple_endpoints_files(&self, target_path: Option<PathBuf>) -> Result<()> {
-        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
-
-        // Create the `endpoint` directory if necessary.
-        let _ = create_dir(workspace_root.join("endpoints")).await; // if an error occurs it will be ignored.
-
-        match target_path {
-            Some(target_path) => {
-                // Update only a specific file.
-
-                // Create all path's subdirectories if needed.
-                create_dir_all(target_path.parent().unwrap()).await?;
-
-                let simple_endpoints_by_file_guard = self.simple_endpoints_by_file.read().await;
-
-                match simple_endpoints_by_file_guard.iter().find(|(opt_file, _)| {
-                    opt_file
-                        .to_owned()
-                        .map(|file| file == *target_path)
-                        .unwrap_or(false)
-                }) {
-                    Some((_, simple_endpoints)) => {
-                        let content = serde_json::to_string_pretty(&simple_endpoints)?;
-
-                        write(target_path, content).await?;
-
-                        Ok(())
+                    (Some(id), Some(route), true) => {
+                        id == endpoint.id() && route == endpoint.route()
                     }
-                    None => Err(anyhow!(
-                        "Target path does not exist in the current app context."
-                    )),
+                    _ => false,
+                } {
+                    return Ok(Some((target_path, endpoint)));
                 }
-            }
-            None => {
-                // Update all endpoint files.
-                let simple_endpoints_by_file_guard = self.simple_endpoints_by_file.read().await;
-
-                for (target_path, simple_endpoints) in simple_endpoints_by_file_guard.iter() {
-                    if let Some(target_path) = target_path {
-                        // Create all path's subdirectories if needed.
-                        create_dir_all(target_path.parent().unwrap()).await?;
-
-                        let content = serde_json::to_string_pretty(&simple_endpoints)?;
-
-                        write(target_path, content).await?;
-                    }
-                }
-                Ok(())
             }
         }
+
+        Ok(None)
     }
 
     /// Returns the user-defined (`SimpleEndpoint`), the auto-generated and internal endpoints that have been loaded into the app.
     /// NOTE: the internal login endpoint will be injected in this method.
-    pub async fn get_endpoints(&self) -> Result<SimpleEndpointsByFile> {
+    pub async fn get_endpoints(&self) -> Result<ManyByFile<SimpleEndpoint>> {
         let executor_build_guard = RuntimeCx::acquire().build().read().await;
 
         let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
@@ -369,9 +266,9 @@ impl AppCx {
             .to_owned()
             .iter()
             .cloned()
-            .collect::<SimpleEndpointsByFile>();
+            .collect::<ManyByFile<SimpleEndpoint>>();
 
-        // Make user-defined endpoints' path relative to the project's endpoints folder.
+        // Make paths relative to the project's endpoints folder.
         simple_endpoints_by_file
             .iter_mut()
             .for_each(|(path_buf, _)| {
@@ -421,10 +318,10 @@ impl AppCx {
     /// NOTE: any modification of the endpoint file that hasn't been loaded into the app context will be lost.
     pub async fn add_endpoint(
         &self,
-        target: CompactString,
+        target_path: CompactString,
         endpoint: SimpleEndpoint,
     ) -> Result<()> {
-        if !target.ends_with(".json") {
+        if !target_path.ends_with(".json") {
             bail!("Target file doesn't end with `.json`.");
         }
 
@@ -446,14 +343,18 @@ impl AppCx {
         // Add the endpoint to the Silence's app context.
         let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
 
-        let target_path = workspace_root
-            .join("endpoints")
-            .join(&target.trim_matches('/'));
+        let endpoints_dir = workspace_root.join("endpoints");
+
+        let mut target_path = PathBuf::from(target_path);
+
+        if !target_path.starts_with(&endpoints_dir) {
+            target_path = endpoints_dir.join(target_path)
+        };
 
         {
-            let mut simple_endpoint_by_file_guard = self.simple_endpoints_by_file.write().await;
+            let mut simple_endpoints_by_file_guard = self.simple_endpoints_by_file.write().await;
 
-            match simple_endpoint_by_file_guard
+            match simple_endpoints_by_file_guard
                 .iter_mut()
                 .find(|(opt_file, _)| {
                     opt_file
@@ -469,12 +370,16 @@ impl AppCx {
                     // While in this flow is not guaranteed that the file nor the directory exists.
                     let endpoints = CheapVec::from_vec(vec![endpoint.to_owned()]);
 
-                    simple_endpoint_by_file_guard.push((Some(target_path.to_owned()), endpoints));
+                    simple_endpoints_by_file_guard.push((Some(target_path.to_owned()), endpoints));
                 }
             }
         }
 
-        self.set_simple_endpoints_files(Some(target_path)).await?;
+        self.update_file(
+            self.simple_endpoints_by_file.read().await,
+            Some(target_path),
+        )
+        .await?;
 
         Ok(())
     }
@@ -503,30 +408,32 @@ impl AppCx {
         }
 
         // Convert endpoint from `waveless_commons::endpoint::Endpoint` back to Silence's `SimpleEndpoint`.
-        let mut simple_endpoint = SimpleEndpoint::from(endpoint);
+        let mut simple_endpoint = SimpleEndpoint::from(&endpoint);
         *simple_endpoint.auto_generated_mut() = false;
 
         // Delete the endpoint.
-        let target_path = self.delete_endpoint(id).await?;
+        let target_path = self
+            .delete_endpoint(id)
+            .await?
+            .map(|target_path| target_path.to_str().unwrap().to_compact_string())
+            .unwrap_or("default.json".to_compact_string());
 
         // Add the new endpoint.
         simple_endpoint.apply(patch);
 
-        self.add_endpoint(
-            target_path
-                .map(|target_path| {
-                    target_path
-                        .iter()
-                        .last()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_compact_string()
-                })
-                .unwrap_or("default.json".to_compact_string()),
-            simple_endpoint,
-        )
-        .await?;
+        match self
+            .add_endpoint(target_path.to_owned(), simple_endpoint)
+            .await
+        {
+            Err(err) => {
+                // Restore the old endpoint.
+                self.add_endpoint(target_path, SimpleEndpoint::from(&endpoint))
+                    .await?;
+
+                Err(err)
+            }
+            _ => Ok(()),
+        }?;
 
         Ok(())
     }
@@ -574,27 +481,26 @@ impl AppCx {
             let mut simple_endpoint_by_files =
                 Self::acquire().simple_endpoints_by_file.write().await;
 
-            for (target_path_iter, endpoints) in simple_endpoint_by_files.iter_mut() {
-                if let Some(target_path_iter) = target_path_iter {
-                    let Some((ix, _)) = endpoints
-                        .iter()
-                        .enumerate()
-                        .find(|(_, endpoint)| *endpoint.id() == id)
-                    else {
-                        continue;
-                    };
+            if let Some((ix, _target_path, endpoints)) = simple_endpoint_by_files
+                .iter_mut()
+                .map(|(target_path, endpoints)| (target_path.to_owned(), endpoints))
+                .map(|(target_path, endpoint)| {
+                    let ix = endpoint.iter().position(|endpoint| *endpoint.id() == id)?;
 
-                    endpoints.remove(ix);
+                    Some((ix, target_path, endpoint))
+                })
+                .filter(|val| val.is_some())
+                .flatten()
+                .next()
+            {
+                target_path = _target_path;
 
-                    target_path = Some(target_path_iter.to_owned());
-
-                    break;
-                }
+                endpoints.remove(ix);
             }
 
             if let Some(target_path) = target_path.to_owned() {
-                drop(simple_endpoint_by_files); // drop the lock to be able to read the simple endpoints from the app's context.
-                self.set_simple_endpoints_files(Some(target_path)).await?;
+                self.update_file(simple_endpoint_by_files.downgrade(), Some(target_path))
+                    .await?;
             }
         }
 
@@ -609,5 +515,324 @@ impl AppCx {
         }
 
         Ok(target_path)
+    }
+
+    /// Returns an endpoint test given it's id.
+    pub async fn get_test(
+        &self,
+        name: CompactString,
+    ) -> Result<Option<(Option<PathBuf>, EndpointTest)>> {
+        for (target_path, endpoint_tests) in self.get_tests().await? {
+            for endpoint_test in endpoint_tests {
+                if endpoint_test.name() == name {
+                    return Ok(Some((target_path, endpoint_test)));
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Returns user-defined tests.
+    pub async fn get_tests(&self) -> Result<ManyByFile<EndpointTest>> {
+        let mut endpoint_tests_by_file = self.endpoint_tests_by_file.read().await.to_owned();
+
+        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
+        let tests_dir = workspace_root.join("tests");
+
+        // Make paths relative to the project's endpoints folder.
+        endpoint_tests_by_file.iter_mut().for_each(|(path_buf, _)| {
+            if let Some(path) = path_buf.to_owned() {
+                let path = Path::new(&path);
+                *path_buf = Some(
+                    path.strip_prefix(tests_dir.to_owned())
+                        .unwrap_or(path)
+                        .to_path_buf(),
+                );
+            }
+        });
+
+        Ok(endpoint_tests_by_file)
+    }
+
+    pub async fn add_test(
+        &self,
+        target_path: CompactString,
+        endpoint_test: EndpointTest,
+    ) -> Result<()> {
+        if !target_path.ends_with(".json") {
+            bail!("Target file doesn't end with `.json`.");
+        }
+
+        // Check whether a test with the same name exists.
+        if self
+            .get_test(endpoint_test.name().to_owned())
+            .await?
+            .is_some()
+        {
+            bail!(
+                "A test with the name `{}` already exists.",
+                endpoint_test.name()
+            )
+        };
+
+        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
+
+        let tests_dir = workspace_root.join("tests");
+
+        let mut target_path = PathBuf::from(target_path);
+
+        if !target_path.starts_with(&tests_dir) {
+            target_path = tests_dir.join(target_path)
+        };
+
+        {
+            let mut endpoint_tests_by_file_guard = self.endpoint_tests_by_file.write().await;
+
+            match endpoint_tests_by_file_guard
+                .iter_mut()
+                .find(|(opt_file, _)| {
+                    opt_file
+                        .to_owned()
+                        .map(|file| file == target_path)
+                        .unwrap_or(false)
+                }) {
+                Some((_, endpoint_tests)) => {
+                    // This flow assumes that the file already exists.
+                    endpoint_tests.push(endpoint_test);
+                }
+                None => {
+                    // While in this flow is not guaranteed that the file nor the directory exists.
+                    let endpoint_tests = CheapVec::from_vec(vec![endpoint_test.to_owned()]);
+
+                    endpoint_tests_by_file_guard
+                        .push((Some(target_path.to_owned()), endpoint_tests));
+                }
+            }
+        }
+
+        self.update_file(self.endpoint_tests_by_file.read().await, Some(target_path))
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn set_test(&self, name: CompactString, patch: EndpointTestPatch) -> Result<()> {
+        let Some(mut endpoint_test) = self
+            .endpoint_tests_by_file
+            .read()
+            .await
+            .iter()
+            .cloned()
+            .flat_map(|(_, endpoint_tests)| endpoint_tests)
+            .find(|endpoint_test| *endpoint_test.name() == name)
+        else {
+            bail!("Couldn't find a test with the id {}", name);
+        };
+
+        // Delete the test.
+        let target_path = self.delete_test(name).await?;
+
+        // Add the new endpoint.
+        endpoint_test.apply(patch);
+
+        self.add_test(
+            target_path
+                .map(|target_path| target_path.to_str().unwrap().to_compact_string())
+                .unwrap_or("default.json".to_compact_string()),
+            endpoint_test,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_test(&self, name: CompactString) -> Result<Option<PathBuf>> {
+        let mut endpoint_tests_guard = self.endpoint_tests_by_file.write().await;
+
+        let Some((ix, target_path, endpoint_tests)) = endpoint_tests_guard
+            .iter_mut()
+            .map(|(target_path, endpoint_tests)| (target_path.to_owned(), endpoint_tests))
+            .map(|(target_path, endpoint_tests)| {
+                let ix = endpoint_tests
+                    .iter()
+                    .position(|endpoint_test| *endpoint_test.name() == name)?;
+
+                Some((ix, target_path, endpoint_tests))
+            })
+            .filter(|val| val.is_some())
+            .flatten()
+            .next()
+        else {
+            bail!("Couldn't find a test with the id {}", name);
+        };
+
+        endpoint_tests.remove(ix);
+
+        if let Some(target_path) = target_path.to_owned() {
+            self.update_file(endpoint_tests_guard.downgrade(), Some(target_path))
+                .await?;
+        }
+
+        Ok(target_path)
+    }
+
+    /// Loads all simple type files from a given project's folder (Borrowed from the `waveless_compiler`).
+    async fn load_from_dir<P: AsRef<Path>, T: Clone + DeserializeOwned + Debug + Send + Sync>(
+        dir: P,
+    ) -> Result<Option<ManyByFile<T>>> {
+        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
+
+        let target_dir = workspace_root.join(dir);
+
+        if let Ok(target_dir_exists) = try_exists(&target_dir).await {
+            match target_dir_exists {
+                true => {
+                    let mut generic_buff = ManyByFile::<T>::new();
+
+                    generic_buff.append(
+                        &mut Self::walk_dirs::<T>(target_dir)
+                            .await?
+                            .iter()
+                            .cloned()
+                            .map(|(path, endpoints)| (Some(path), endpoints))
+                            .collect::<CheapVec<_>>(),
+                    );
+
+                    debug!("Deserialized: {:#?}", generic_buff);
+
+                    Ok(Some(generic_buff))
+                }
+                false => {
+                    warn!(
+                        "Directory (`{}`) cannot be found. Omitting...",
+                        target_dir.display()
+                    );
+
+                    Ok(None)
+                }
+            }
+        } else {
+            error!(
+                "Cannot read directory (`{}`). Are you sure you have permissions?",
+                target_dir.display()
+            );
+            Ok(None)
+        }
+    }
+
+    /// Updates the contents of a simple type file from the app's context. This method explicitly skips
+    /// data without a defined path (which means that it has been added at runtime and not meant to be saved).
+    /// NOTE: if a `target_path` is given it will only update the data of that file.
+    async fn update_file<'a, T: Clone + Serialize + Send + Sync>(
+        &self,
+        read_guard: RwLockReadGuard<'a, ManyByFile<T>>,
+        target_path: Option<PathBuf>,
+    ) -> Result<()> {
+        let workspace_root = get_workspace_root("config.json").unwrap_or(current_dir()?);
+
+        match target_path {
+            Some(target_path) => {
+                // Update only a specific file.
+
+                // Check whether the file path is relative to the project.
+                if !target_path.starts_with(&workspace_root) {
+                    bail!(
+                        "File's path (`{}`) is outside the current project's dir.",
+                        target_path.display()
+                    )
+                };
+
+                // Create all path's subdirectories if needed.
+                create_dir_all(target_path.parent().unwrap()).await?;
+
+                match read_guard.iter().find(|(opt_file, _)| {
+                    opt_file
+                        .to_owned()
+                        .map(|file| file == *target_path)
+                        .unwrap_or(false)
+                }) {
+                    Some((_, generic_buff)) => {
+                        let content = serde_json::to_string_pretty(&generic_buff)?;
+
+                        write(target_path, content).await?;
+
+                        Ok(())
+                    }
+                    None => Err(anyhow!(
+                        "Target path does not exist in the current app context."
+                    )),
+                }
+            }
+            None => {
+                // Update all files.
+                for (target_path, generic_buff) in read_guard.iter() {
+                    if let Some(target_path) = target_path {
+                        // Check whether the file path is relative to the project.
+                        if !target_path.starts_with(&workspace_root) {
+                            bail!(
+                                "File's path (`{}`) is outside the current project's dir.",
+                                target_path.display()
+                            )
+                        };
+
+                        // Create all path's subdirectories if needed.
+                        create_dir_all(target_path.parent().unwrap()).await?;
+
+                        let content = serde_json::to_string_pretty(&generic_buff)?;
+
+                        write(target_path, content).await?;
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// Recursively walk and deserialize files through all subfolders in the given project's folder.
+    fn walk_dirs<T: Clone + DeserializeOwned + Send + Sync>(
+        dir: PathBuf,
+    ) -> BoxFuture<'static, Result<CheapVec<(PathBuf, CheapVec<T>)>>> {
+        Box::pin(async move {
+            let mut des_buff = CheapVec::<(PathBuf, CheapVec<T>)>::new();
+
+            if let Ok(mut dir) = read_dir(dir).await {
+                while let Ok(Some(file_entry)) = dir.next_entry().await {
+                    let entry_metadata = file_entry.metadata().await?;
+                    match entry_metadata.is_dir() {
+                        true => {
+                            // Recurse into that directory.
+                            match Self::walk_dirs(file_entry.path()).await {
+                                Ok(inner_des) => des_buff.append(&mut inner_des.to_owned()),
+                                Err(err) => return Err(err),
+                            }
+                        }
+                        false => match read(file_entry.path()).await {
+                            Ok(file_buffer) => {
+                                match serde_json::from_slice::<CheapVec<T>>(&file_buffer) {
+                                    Ok(des) => des_buff.push((file_entry.path(), des)),
+                                    Err(err) => {
+                                        Err(anyhow!(
+                                            "Cannot deserialize file '{}'.%{}",
+                                            file_entry.file_name().display(),
+                                            err.to_string()
+                                        ))?;
+                                    }
+                                };
+                            }
+                            Err(err) => {
+                                Err(anyhow!(
+                                    "Cannot open the file '{}'.%{}",
+                                    file_entry.file_name().display(),
+                                    err.to_string()
+                                ))?;
+                            }
+                        },
+                    }
+                }
+            }
+
+            Ok(des_buff)
+        })
     }
 }

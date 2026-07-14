@@ -7,62 +7,56 @@ use databases::*;
 use http_execute::{request_cx::*, *};
 
 #[derive(Clone, Serialize, Deserialize, Getters, Display, Debug)]
-#[display("Endpoint manager.")]
-pub struct EndpointsManager;
+#[display("Tests manager.")]
+pub struct EndpointTestsManager;
 
-boxed_any!(EndpointsManager);
+boxed_any!(EndpointTestsManager);
 
 /// TODO: add docs here.
-#[typetag::serde(name = "EndpointManager")]
+#[typetag::serde(name = "TestsManager")]
 #[async_trait]
-impl AnyHttpExecute for EndpointsManager {
+impl AnyHttpExecute for EndpointTestsManager {
     async fn execute(
         &self,
         cx: RequestCx,
         _: Arc<dyn AnyDatabaseConnection>,
     ) -> Result<HttpResponse, RequestError> {
         let RequestCx {
-            request,
             method,
             request_params,
+            request,
             ..
         } = cx;
 
         match method {
             HttpMethod::Get => {
-                let simple_endpoint_id = request_params.get("endpoint_id");
+                let test_name = request_params.get("test_name").cloned();
 
-                match simple_endpoint_id {
-                    Some(ParamValue::Client(Some(id))) => {
-                        let (target_path, simple_endpoint) = AppCx::acquire()
-                            .get_endpoint(Some(id.to_owned()), None, false)
+                match test_name {
+                    Some(ParamValue::Client(Some(mut name))) => {
+                        name = name.replace("%20", " ").into();
+
+                        let endpoint_test = AppCx::acquire()
+                            .get_test(name.to_owned())
                             .await?
                             .ok_or(RequestError::Expected(
                                 StatusCode::BAD_REQUEST,
-                                format!("Cannot find endpoint with id `{}`", id)
+                                format!("Cannot find test with name `{}`", name)
                                     .to_compact_string(),
                             ))?;
 
-                        let serialized_endpoint = serde_json::to_value((
-                            target_path,
-                            simple_endpoint,
-                        ))
-                        .map_err(|err| {
-                            RequestError::Other(anyhow!("Cannot serialize endpoint. {}", err))
+                        let res = serde_json::to_value(endpoint_test).map_err(|err| {
+                            RequestError::Other(anyhow!("Cannot serialize test. {}", err))
                         })?;
 
-                        Ok(HttpResponse::new(
-                            None,
-                            Some(BodyValue::Json(serialized_endpoint)),
-                        ))
+                        Ok(HttpResponse::new(None, Some(BodyValue::Json(res))))
                     }
                     None => {
-                        let simple_endpoints_by_file = AppCx::acquire().get_endpoints().await?;
+                        let endpoint_tests = AppCx::acquire().get_tests().await?;
 
-                        let res =
-                            serde_json::to_value(simple_endpoints_by_file).map_err(|err| {
-                                RequestError::Other(anyhow!("Cannot serialize endpoints. {}", err))
-                            })?;
+                        let res = serde_json::to_value(endpoint_tests).map_err(|err| {
+                            RequestError::Other(anyhow!("Cannot serialize tests. {}", err))
+                        })?;
 
                         Ok(HttpResponse::new(None, Some(BodyValue::Json(res))))
                     }
@@ -84,11 +78,11 @@ impl AnyHttpExecute for EndpointsManager {
                         .to_vec(),
                 );
 
-                let simple_endpoint =
-                    serde_json::from_slice::<SimpleEndpoint>(&req_body).map_err(|err| {
+                let endpoint_test =
+                    serde_json::from_slice::<EndpointTest>(&req_body).map_err(|err| {
                         RequestError::Expected(
                             StatusCode::BAD_REQUEST,
-                            format!("Cannot deserialize endpoint. {}", err).to_compact_string(),
+                            format!("Cannot deserialize test. {}", err).to_compact_string(),
                         )
                     })?;
 
@@ -106,7 +100,7 @@ impl AnyHttpExecute for EndpointsManager {
                 }
 
                 AppCx::acquire()
-                    .add_endpoint(target_file, simple_endpoint)
+                    .add_test(target_file, endpoint_test)
                     .await
                     .map_err(|err| {
                         RequestError::Expected(
@@ -131,25 +125,26 @@ impl AnyHttpExecute for EndpointsManager {
                     .to_bytes()
                     .to_vec();
 
-                let simple_endpoint_id = match request_params.get("endpoint_id") {
-                    Some(ParamValue::Client(Some(id))) => id.to_owned(),
+                let endpoint_test_name = match request_params.get("test_name") {
+                    Some(ParamValue::Client(Some(name))) => name.to_owned(),
                     _ => Err(RequestError::Expected(
                         StatusCode::BAD_REQUEST,
-                        format!("Endpoint's id to delete was not specified.").to_compact_string(),
+                        format!("Test's name to delete was not specified.").to_compact_string(),
                     ))?,
-                };
+                }
+                .replace("%20", " ")
+                .into();
 
-                let simple_endpoint_patch = serde_json::from_slice::<SimpleEndpointPatch>(req_body)
+                let endpoint_test_patch = serde_json::from_slice::<EndpointTestPatch>(req_body)
                     .map_err(|err| {
                         RequestError::Expected(
                             StatusCode::BAD_REQUEST,
-                            format!("Cannot deserialize endpoint's patch. {}", err)
-                                .to_compact_string(),
+                            format!("Cannot deserialize test's patch. {}", err).to_compact_string(),
                         )
                     })?;
 
                 AppCx::acquire()
-                    .set_endpoint(simple_endpoint_id, simple_endpoint_patch)
+                    .set_test(endpoint_test_name, endpoint_test_patch)
                     .await
                     .map_err(|err| {
                         RequestError::Expected(
@@ -162,16 +157,18 @@ impl AnyHttpExecute for EndpointsManager {
                 Ok(HttpResponse::new(None, None))
             }
             HttpMethod::Delete => {
-                let simple_endpoint_id = match request_params.get("id") {
+                let endpoint_test_name = match request_params.get("test_name") {
                     Some(ParamValue::Client(Some(id))) => id.to_owned(),
                     _ => Err(RequestError::Expected(
                         StatusCode::BAD_REQUEST,
-                        format!("Endpoint id to delete was not specified.").to_compact_string(),
+                        format!("Test's name to delete was not specified.").to_compact_string(),
                     ))?,
-                };
+                }
+                .replace("%20", " ")
+                .into();
 
                 AppCx::acquire()
-                    .delete_endpoint(simple_endpoint_id)
+                    .delete_test(endpoint_test_name)
                     .await
                     .map_err(|err| {
                         RequestError::Expected(
@@ -183,7 +180,7 @@ impl AnyHttpExecute for EndpointsManager {
 
                 Ok(HttpResponse::new(None, None))
             }
-            HttpMethod::Unknown => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }
