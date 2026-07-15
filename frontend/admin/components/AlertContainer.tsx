@@ -26,15 +26,25 @@ export default (props: {
         (value: AlertStruct | undefined) => props.alert_signals[1](value),
     ];
 
+    let dismiss_timeout_id: number | undefined = undefined;
+
     const [debounced_alert, set_debounced_alert] = createSignal<
         AlertStruct | undefined
     >(get_alert());
 
     createEffect(() => {
-        if (props.hide_timeout !== undefined) {
-            setTimeout(() => {
-                set_alert(undefined);
-            }, props.hide_timeout);
+        if (get_alert() !== undefined && props.hide_timeout !== undefined) {
+            clearTimeout(dismiss_timeout_id);
+
+            if (props.hide_timeout !== undefined) {
+                dismiss_timeout_id = setTimeout(
+                    () => {
+                        set_alert(undefined);
+                    },
+                    props.hide_timeout,
+                    "id",
+                ) as unknown as number;
+            }
         }
     });
 

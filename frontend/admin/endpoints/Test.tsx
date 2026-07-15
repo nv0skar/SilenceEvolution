@@ -442,7 +442,7 @@ export default (_: RouteSectionProps) => {
                                     <textarea
                                         id="body"
                                         name="body"
-                                        class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
+                                        class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0 resize-none"
                                         spellcheck="false"
                                         onKeyDown={(event) => {
                                             let target = event.currentTarget;

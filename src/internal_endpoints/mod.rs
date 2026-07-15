@@ -21,7 +21,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("Whoami".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/whoami".into())
+                .route("whoami".into())
                 .version("internal".into())
                 .method(HttpMethod::Get)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -40,7 +40,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("Bootstrap".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/bootstrap".into())
+                .route("bootstrap".into())
                 .version("internal".into())
                 .method(HttpMethod::Get)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -64,7 +64,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("ListUsers".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/users".into())
+                .route("users".into())
                 .version("internal/admin".into())
                 .method(HttpMethod::Get)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -83,7 +83,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("GetUser".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/users/{id}".into())
+                .route("users/{id}".into())
                 .version("internal/admin".into())
                 .method(HttpMethod::Get)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -102,7 +102,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("NewUser".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/users".into())
+                .route("users".into())
                 .version("internal/admin".into())
                 .method(HttpMethod::Post)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -122,7 +122,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("SetUser".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/users/{id}".into())
+                .route("users/{id}".into())
                 .version("internal/admin".into())
                 .method(HttpMethod::Put)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -142,7 +142,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("DeleteUser".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/users/{id}".into())
+                .route("users/{id}".into())
                 .version("internal/admin".into())
                 .method(HttpMethod::Delete)
                 .execute(Arc::new(MySQLExecuteProxy::new(
@@ -161,7 +161,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .id("DeleteRole".into())
             .database("internal".into())
             .target(Targets::HttpTarget(HttpTargetBuilder::default()
-                .route("/users/{id}/role".into())
+                .route("users/{id}/role".into())
                 .version("internal/admin".into())
                 .method(HttpMethod::Delete)
                 .execute(Arc::new(MySQLExecuteProxy::new(

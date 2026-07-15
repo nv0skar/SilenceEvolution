@@ -120,11 +120,10 @@ export default (_: RouteSectionProps) => {
 
         endpoints_context.refetch_endpoints();
 
-        if (endpoint_data === undefined)
-            navigate("/endpoints", {
-                replace: false,
-                scroll: false,
-            });
+        navigate("/endpoints", {
+            replace: false,
+            scroll: false,
+        });
     };
 
     const delete_endpoint = async () => {
@@ -195,8 +194,9 @@ export default (_: RouteSectionProps) => {
                 <Show
                     when={
                         endpoint_data === undefined ||
-                        endpoint_data.endpoint.execute !== null ||
-                        !endpoint_data.endpoint.version?.includes("internal")
+                        (endpoint_data!.endpoint.execute !== null &&
+                            endpoint_data!.endpoint.version?.split("/")[0] !==
+                                "internal")
                     }
                     fallback={
                         <span>
@@ -312,7 +312,7 @@ export default (_: RouteSectionProps) => {
                                     <textarea
                                         id="query"
                                         name="query"
-                                        class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0"
+                                        class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0  resize-none"
                                         spellcheck="false"
                                         value={
                                             endpoint_data

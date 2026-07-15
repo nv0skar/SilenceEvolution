@@ -191,7 +191,7 @@ export default (props: RouteSectionProps) => {
                     <h1 class="text-4xl font-bold">Config</h1>
                 </div>
                 <Show when={!config.loading}>
-                    <div class="grid gap gap-2 py-8">
+                    <div class="grid gap gap-2 py-3">
                         <AlertBox
                             alert_signals={[get_alert, set_alert]}
                             hide_timeout={

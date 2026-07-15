@@ -39,7 +39,7 @@ export default () => {
     return (
         <>
             <Portal>
-                <div class="overscroll-none antialiased fixed flex flex-col w-screen h-screen inset-0 z-50 **:transition-all **:transition-discrete **:ease-in-out **:duration-1000 pointer-events-none">
+                <div class="overscroll-none antialiased fixed flex flex-col w-screen h-screen inset-0 z-50 **:transition-all **:transition-discrete **:ease-in-out **:duration-800 pointer-events-none">
                     <div class="w-full flex justify-end">
                         <div
                             class="relative w-2 h-screen pointer-coarse:h-[90vh] min-h-[5vh] max-h-screen pointer-coarse:max-h-[90vh] scale-x-[500] opacity-0 resize-y overflow-hidden origin-bottom-right pointer-events-auto cursor-ns-resize active:transition-none [clip-path:inset(calc(100%-24px)_0_0_0)]"

@@ -5,10 +5,12 @@ import { children, Show, type ParentProps } from "solid-js";
 
 import { Portal } from "solid-js/web";
 
-import { A, useNavigate, useParams } from "@solidjs/router";
+import { A, useLocation, useNavigate, useParams } from "@solidjs/router";
 
 export default (props: { parent_path: string } & ParentProps) => {
     const navigate = useNavigate();
+
+    const location = useLocation();
 
     const params = useParams();
 
@@ -89,7 +91,7 @@ export default (props: { parent_path: string } & ParentProps) => {
                                 </A>
                             </div>
 
-                            <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none">
+                            <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none [&>div]:transition-all [&>div]:transition-discrete [&>div]:duration-500 [&>div]:starting:opacity-0 [&>div]:starting:scale-90">
                                 <Show when={expected_children() !== undefined}>
                                     {expected_children()}
                                 </Show>

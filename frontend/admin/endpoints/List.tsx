@@ -25,6 +25,8 @@ import {
     useContext,
 } from "solid-js";
 
+import { Portal } from "solid-js/web";
+
 import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
 
 import { filter, pipe, sortBy } from "remeda";
@@ -41,6 +43,8 @@ export default (props: RouteSectionProps) => {
     const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
         undefined,
     );
+
+    let table_container: HTMLDivElement | undefined = undefined;
 
     // Full data.
     const [get_full_data, set_full_data] = createSignal<boolean>(false);
@@ -132,9 +136,9 @@ export default (props: RouteSectionProps) => {
                         return (
                             get_full_data() ||
                             (endpoint_by_file.endpoint.execute! !== null &&
-                                !endpoint_by_file.endpoint.version?.includes(
-                                    "internal",
-                                ))
+                                endpoint_by_file.endpoint.version?.split(
+                                    "/",
+                                )[0] !== "internal")
                         );
                     }),
                     sortBy([
@@ -188,6 +192,11 @@ export default (props: RouteSectionProps) => {
                             </A>
                             <button
                                 class="btn text-sm self-end text-right ml-auto"
+                                classList={{
+                                    "btn-primary":
+                                        get_search() !== undefined &&
+                                        get_search()?.length !== 0,
+                                }}
                                 popovertarget="search-dropdown"
                                 style="anchor-name:--search-dropdown"
                             >
@@ -242,7 +251,7 @@ export default (props: RouteSectionProps) => {
                                 }}
                             >
                                 <span
-                                    class="text-xs text-blue-500 font-semibold self-center"
+                                    class="text-xs text-blue-900 dark:text-blue-500 font-semibold self-center"
                                     classList={{
                                         "text-red-500": get_full_data(),
                                     }}
@@ -286,7 +295,10 @@ export default (props: RouteSectionProps) => {
                         </EndpointsContext.Provider>
                     </Modal>
 
-                    <div class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95">
+                    <div
+                        class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95"
+                        ref={table_container}
+                    >
                         <div class="table text-sm table-auto border-collapse">
                             <div class="table-header-group border-b-2 border-b-base-300">
                                 <div class="table-row font-bold bg-base-300 [&>div]:w-auto [&>div]:p-3 [&_div]:align-middle [&>div]:text-left [&>div]:rounded-none">
@@ -373,7 +385,19 @@ export default (props: RouteSectionProps) => {
                                 </div>
                             </div>
                             <div class="table-row-group [&>div:nth-of-type(even)]:bg-base-200 [&>div]:hover:bg-base-300/80! [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
-                                <Index each={endpoints_list()}>
+                                <Index
+                                    each={endpoints_list()}
+                                    fallback={
+                                        <Portal mount={table_container!}>
+                                            <div class="flex my-8 justify-center items-center text-center">
+                                                <p class="text-sm font-light">
+                                                    No endpoints found with
+                                                    matching criteria.
+                                                </p>
+                                            </div>
+                                        </Portal>
+                                    }
+                                >
                                     {(endpoint, ix) => (
                                         <>
                                             <div

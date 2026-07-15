@@ -21,6 +21,8 @@ import {
     useContext,
 } from "solid-js";
 
+import { Portal } from "solid-js/web";
+
 import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
 
 import { filter, pipe, sortBy } from "remeda";
@@ -35,6 +37,8 @@ export default (props: RouteSectionProps) => {
     const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
         undefined,
     );
+
+    let table_container: HTMLDivElement | undefined = undefined;
 
     // Table sort state.
     const [get_table_sort, set_table_sort] = createSignal<{
@@ -97,72 +101,74 @@ export default (props: RouteSectionProps) => {
         <>
             <div>
                 <div class="flex flex-col gap-3 pb-3 items-center w-full">
-                    <div class="flex flex-col gap-3 pb-3 items-center w-full">
-                        <div class="flex not-lg:flex-col not-lg:gap-3 items-center w-full">
-                            <h1 class="text-4xl font-bold">Users</h1>
-                            <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
-                                <button
-                                    class="btn text-sm self-end text-right ml-auto"
-                                    popovertarget="search-dropdown"
-                                    style="anchor-name:--search-dropdown"
-                                >
-                                    <span class="material-symbols-outlined">
-                                        search
-                                    </span>
-                                </button>
-                                <ul
-                                    id="search-dropdown"
-                                    class="dropdown menu w-64 rounded-box bg-base-200/25 border-base-300 border backdrop-blur-sm backdrop-brightness-110 shadow-lg opacity-0 [&:popover-open]:opacity-100 starting:opacity-0 transition-all transition-discrete duration-200"
-                                    classList={{
-                                        hidden:
-                                            resolved_children() !== undefined,
-                                    }}
-                                    style="position-anchor:--search-dropdown; inset: auto; align-self: anchor-center; justify-self: anchor-left; margin: 0.5rem;"
-                                    onMouseLeave={(event) =>
-                                        (
-                                            event.currentTarget as HTMLUListElement
-                                        ).togglePopover()
-                                    }
-                                    popover
-                                >
-                                    <li>
-                                        <input
-                                            class="input"
-                                            placeholder="Search"
-                                            onInput={(event) =>
-                                                set_search(
-                                                    event.currentTarget.value ??
-                                                        undefined,
-                                                )
-                                            }
-                                            onFocus={(event) => {
-                                                event.currentTarget.value = "";
-                                                set_search(undefined);
-                                            }}
-                                            autofocus
-                                        ></input>
-                                    </li>
-                                </ul>
-                                <button
-                                    class="btn text-sm self-end text-right ml-auto"
-                                    onClick={refetch}
-                                >
-                                    <span class="material-symbols-outlined">
-                                        refresh
-                                    </span>
-                                </button>
-                                <A
-                                    class="btn text-sm self-end text-right ml-auto"
-                                    href="/users/new"
-                                >
-                                    <span class="material-symbols-outlined lg:hidden!">
-                                        add
-                                    </span>
-                                    <span class="not-lg:hidden">
-                                        Create new user
-                                    </span>
-                                </A>
-                            </div>
+                    <div class="flex not-lg:flex-col not-lg:gap-3 items-center w-full">
+                        <h1 class="text-4xl font-bold">Users</h1>
+                        <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
+                            <button
+                                class="btn text-sm self-end text-right ml-auto"
+                                classList={{
+                                    "btn-primary":
+                                        get_search() !== undefined &&
+                                        get_search()?.length !== 0,
+                                }}
+                                popovertarget="search-dropdown"
+                                style="anchor-name:--search-dropdown"
+                            >
+                                <span class="material-symbols-outlined">
+                                    search
+                                </span>
+                            </button>
+                            <ul
+                                id="search-dropdown"
+                                class="dropdown menu w-64 rounded-box bg-base-200/25 border-base-300 border backdrop-blur-sm backdrop-brightness-110 shadow-lg opacity-0 [&:popover-open]:opacity-100 starting:opacity-0 transition-all transition-discrete duration-200"
+                                classList={{
+                                    hidden: resolved_children() !== undefined,
+                                }}
+                                style="position-anchor:--search-dropdown; inset: auto; align-self: anchor-center; justify-self: anchor-left; margin: 0.5rem;"
+                                onMouseLeave={(event) =>
+                                    (
+                                        event.currentTarget as HTMLUListElement
+                                    ).togglePopover()
+                                }
+                                popover
+                            >
+                                <li>
+                                    <input
+                                        class="input"
+                                        placeholder="Search"
+                                        onInput={(event) =>
+                                            set_search(
+                                                event.currentTarget.value ??
+                                                    undefined,
+                                            )
+                                        }
+                                        onFocus={(event) => {
+                                            event.currentTarget.value = "";
+                                            set_search(undefined);
+                                        }}
+                                        autofocus
+                                    ></input>
+                                </li>
+                            </ul>
+                            <button
+                                class="btn text-sm self-end text-right ml-auto"
+                                onClick={refetch}
+                            >
+                                <span class="material-symbols-outlined">
+                                    refresh
+                                </span>
+                            </button>
+                            <A
+                                class="btn text-sm self-end text-right ml-auto"
+                                href="/users/new"
+                            >
+                                <span class="material-symbols-outlined lg:hidden!">
+                                    add
+                                </span>
+                                <span class="not-lg:hidden">
+                                    Create new user
+                                </span>
+                            </A>
                         </div>
                     </div>
 
@@ -191,7 +197,10 @@ export default (props: RouteSectionProps) => {
                         </UsersContext.Provider>
                     </Modal>
 
-                    <div class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95">
+                    <div
+                        class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95"
+                        ref={table_container}
+                    >
                         <div class="table text-sm table-auto border-collapse">
                             <div class="table-header-group border-b-2 border-b-base-300">
                                 <div class="table-row font-bold bg-base-300 [&>div]:w-auto [&>div]:p-3 [&_div]:align-middle [&>div]:text-left [&>div]:rounded-none">
@@ -229,7 +238,19 @@ export default (props: RouteSectionProps) => {
                                 </div>
                             </div>
                             <div class="table-row-group [&>div]:even:bg-base-200 [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
-                                <Index each={users_list()}>
+                                <Index
+                                    each={users_list()}
+                                    fallback={
+                                        <Portal mount={table_container!}>
+                                            <div class="flex my-8 justify-center items-center text-center">
+                                                <p class="text-sm font-light">
+                                                    No users found with matching
+                                                    criteria.
+                                                </p>
+                                            </div>
+                                        </Portal>
+                                    }
+                                >
                                     {(user, _) => (
                                         <div
                                             class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:align-middle"
