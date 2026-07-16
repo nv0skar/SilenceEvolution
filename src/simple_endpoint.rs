@@ -28,11 +28,13 @@ pub struct SimpleEndpoint {
     id: CompactString,
 
     #[serde(default, skip_serializing_if = "should_skip_option")]
+    #[patch(skip_wrap)]
     database: Option<DatabaseId>,
 
     route: CompactString,
 
     #[serde(default, skip_serializing_if = "should_skip_option")]
+    #[patch(skip_wrap)]
     version: Option<CompactString>,
 
     method: HttpMethod,
@@ -43,9 +45,11 @@ pub struct SimpleEndpoint {
     #[serde(default, skip_serializing_if = "should_skip_cheapvec")]
     body_params: CheapVec<CompactString, 0>,
 
+    #[patch(skip_wrap)]
     execute: Option<MySQLExecuteProxy>,
 
     #[serde(default, skip_serializing_if = "should_skip_option")]
+    #[patch(skip_wrap)]
     description: Option<CompactString>,
 
     #[serde(default, skip_serializing_if = "not_skip")]

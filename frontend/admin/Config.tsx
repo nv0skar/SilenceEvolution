@@ -1,11 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "@admin/Admin.tsx";
-
-import AlertBox, {
-    type AlertStruct,
-} from "@admin/components/AlertContainer.tsx";
+import AlertBox, { type AlertStruct } from "@admin/components/AlertContainer";
 
 import {
     children,
@@ -14,12 +10,14 @@ import {
     createSignal,
     on,
     Show,
-    useContext,
+    type ResourceReturn,
 } from "solid-js";
 
 import { type RouteSectionProps } from "@solidjs/router";
 
 import { pipe, entries, find } from "remeda";
+
+export type ConfigContext = ResourceReturn<ConfigStruct, any>;
 
 export interface ConfigStruct {
     listening_addr: string;
@@ -43,11 +41,20 @@ export interface DatabaseConn {
     db: string;
 }
 
+export const fetcher = async (): Promise<ConfigStruct> => {
+    const res = await fetch("/api/internal/admin/config");
+
+    if (!res.ok) console.clear();
+
+    if (res.status === 200) {
+        const data = await res.json();
+        return data as ConfigStruct;
+    } else {
+        throw new Error("Couldn't load project's config.");
+    }
+};
+
 export default (props: RouteSectionProps) => {
-    const session_context = useContext(SessionContext);
-
-    if (!session_context) throw new Error("Can't find user's context");
-
     const [get_alert, set_alert] = createSignal<AlertStruct | undefined>(
         undefined,
     );

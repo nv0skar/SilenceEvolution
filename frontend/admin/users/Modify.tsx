@@ -1,11 +1,13 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type User, UsersContext } from "@admin/users";
+import AppCx from "@admin/AppCx";
 
-import { confirm_btn } from "@admin/components/Button.tsx";
+import { type User } from "@admin/users";
 
-import { createSignal, Show, useContext } from "solid-js";
+import { confirm_btn } from "@admin/components/ConfirmButton";
+
+import { createMemo, createSignal, Show, useContext } from "solid-js";
 
 import {
     useNavigate,
@@ -14,9 +16,11 @@ import {
 } from "@solidjs/router";
 
 export default (_: RouteSectionProps) => {
-    const users_context = useContext(UsersContext);
+    const app_cx = useContext(AppCx)!;
 
-    if (!users_context) return <span></span>; // This component may be rendered twice, one of the renders will happen with users' context undefined.
+    const [users, { refetch }] = app_cx.get_resource("users");
+
+    if (!users) return <span></span>; // This component may be rendered twice, one of the renders will happen with users' context undefined.
 
     const navigate = useNavigate();
 
@@ -24,12 +28,13 @@ export default (_: RouteSectionProps) => {
 
     const id = useParams()["id"];
 
-    const user_data =
-        id !== undefined
-            ? users_context.users.filter((user) => {
+    const user = createMemo(() => {
+        return id !== undefined && users() !== undefined
+            ? users()!.filter((user) => {
                   return user.user_id == parseInt(id);
               })[0]!
             : undefined;
+    });
 
     const submit_user = async () => {
         const form = document.getElementById("form")! as HTMLFormElement;
@@ -43,7 +48,7 @@ export default (_: RouteSectionProps) => {
             password: form_data["password"]?.toString(),
         } as User;
 
-        if (user_data) {
+        if (user()) {
             for (const field in req) {
                 const value = req[field as keyof User];
                 if (
@@ -71,7 +76,7 @@ export default (_: RouteSectionProps) => {
             return;
         }
 
-        users_context.refetch();
+        refetch();
 
         navigate("/users", {
             replace: false,
@@ -81,14 +86,16 @@ export default (_: RouteSectionProps) => {
 
     const delete_user = async () => {
         const res = await fetch(
-            `/api/internal/admin/users/${user_data!.user_id}`,
-            { method: "delete" },
+            `/api/internal/admin/users/${user()!.user_id}`,
+            {
+                method: "delete",
+            },
         );
 
         if (!res.ok) console.clear();
 
         if (res.status === 200) {
-            users_context.refetch();
+            refetch();
 
             navigate("/users", {
                 replace: false,
@@ -113,7 +120,7 @@ export default (_: RouteSectionProps) => {
             <div class="grid gap-2 py-8">
                 <div>
                     <h1 class="text-3xl text-center pt-4 font-bold">
-                        {user_data !== undefined ? user_data.name : "New user"}
+                        {user() !== undefined ? user()!.name : "New user"}
                     </h1>
                 </div>
 
@@ -148,11 +155,9 @@ export default (_: RouteSectionProps) => {
                                 name="name"
                                 type="text"
                                 class="input"
-                                placeholder={
-                                    user_data ? user_data.name : "Name"
-                                }
-                                value={user_data ? user_data.name : ""}
-                                required={user_data === undefined}
+                                placeholder={user() ? user.name : "Name"}
+                                value={user() ? user()!.name : ""}
+                                required={user() === undefined}
                             />
                         </label>
 
@@ -162,11 +167,9 @@ export default (_: RouteSectionProps) => {
                                 name="email"
                                 type="text"
                                 class="input peer validator"
-                                placeholder={
-                                    user_data ? user_data.email : "Email"
-                                }
-                                value={user_data ? user_data.email : ""}
-                                required={user_data === undefined}
+                                placeholder={user() ? user()!.email : "Email"}
+                                value={user() ? user()!.email : ""}
+                                required={user() === undefined}
                             />
                             <p class="text-error pt-1 hidden peer-not-placeholder-shown:peer-invalid:block">
                                 Email is not valid.
@@ -180,11 +183,9 @@ export default (_: RouteSectionProps) => {
                                 type="text"
                                 class="input"
                                 placeholder={
-                                    user_data
-                                        ? (user_data.role ?? "Role")
-                                        : "Role"
+                                    user() ? (user()!.role ?? "Role") : "Role"
                                 }
-                                value={user_data ? (user_data.role ?? "") : ""}
+                                value={user() ? (user()!.role ?? "") : ""}
                             />
                         </label>
 
@@ -195,9 +196,9 @@ export default (_: RouteSectionProps) => {
                                 type="password"
                                 class="input peer validator"
                                 placeholder="Password"
-                                value={user_data ? user_data.password : ""}
+                                value={user() ? user()!.password : ""}
                                 minLength="8"
-                                required={user_data === undefined}
+                                required={user === undefined}
                             />
                             <p class="text-error pt-1 hidden peer-not-placeholder-shown:peer-invalid:peer-focus:block">
                                 Password must have 8 characters or more.
@@ -210,7 +211,7 @@ export default (_: RouteSectionProps) => {
                         id="delete_user"
                         class="btn btn-active hover:text-white hover:bg-red-600"
                         classList={{
-                            hidden: user_data === undefined,
+                            hidden: user() === undefined,
                         }}
                         data-confirmed={false}
                         onClick={confirm_btn(delete_user)}
@@ -222,12 +223,12 @@ export default (_: RouteSectionProps) => {
                         type="submit"
                         class="btn btn-active hover:text-black hover:btn-success"
                         classList={{
-                            "btn-disabled": user_data === undefined,
+                            "btn-disabled": user() === undefined,
                         }}
                         data-confirmed={false}
                         onClick={confirm_btn(submit_user)}
                     >
-                        {user_data ? "Update" : "Create user"}
+                        {user() ? "Update" : "Create user"}
                     </button>
                 </div>
             </div>

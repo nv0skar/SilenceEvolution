@@ -1,7 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { Context } from "./Auth.tsx";
+import { Context } from "./Auth";
 
 import { useContext } from "solid-js";
 

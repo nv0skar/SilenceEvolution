@@ -24,22 +24,15 @@ pub struct EndpointTest {
     #[serde(default = "default_name")]
     name: CompactString,
 
-    endpoint_id: CompactString,
+    target_endpoint_id: CompactString,
 
     #[serde(default)]
+    #[patch(skip_wrap)]
     description: Option<CompactString>,
 
-    #[serde(default)]
-    route_params: HashMap<CompactString, CompactString>,
-
-    #[serde(default)]
-    query_params: HashMap<CompactString, CompactString>,
-
-    #[serde(default, skip_serializing_if = "should_skip_option")]
-    body: Option<CompactString>,
-
-    #[serde(default, skip_serializing_if = "should_skip_option")]
-    response: Option<HashMap<CompactString, CompactString>>,
+    #[serde(default, flatten)]
+    #[patch(attribute(serde(default, flatten)), skip_wrap)]
+    metadata: Option<HashMap<CompactString, serde_json::Value>>,
 }
 
 fn default_name() -> CompactString {
@@ -50,12 +43,9 @@ impl Default for EndpointTest {
     fn default() -> Self {
         Self {
             name: "My test".into(),
-            endpoint_id: "MyEndpoint".into(),
+            target_endpoint_id: "MyEndpoint".into(),
             description: Some("Get contents of table.".into()),
-            route_params: Default::default(),
-            query_params: Default::default(),
-            body: Default::default(),
-            response: Default::default(),
+            metadata: Default::default(),
         }
     }
 }

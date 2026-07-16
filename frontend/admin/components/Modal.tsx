@@ -37,7 +37,7 @@ export default (props: { parent_path: string } & ParentProps) => {
                     >
                         <div
                             id="modal"
-                            class="relative lg:m-32 w-full min-h-fit max-h-screen px-4 bg-base-100/75 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg transition duration-500"
+                            class="relative lg:m-32 w-full min-h-fit max-h-screen px-4 bg-base-100/75 backdrop-blur-xs border-base-300 rounded-2xl border shadow-lg inset-shadow-sm inset-shadow-base-300/25 transition duration-500"
                             classList={{
                                 "opacity-0 scale-75":
                                     expected_children() === undefined,
@@ -91,7 +91,7 @@ export default (props: { parent_path: string } & ParentProps) => {
                                 </A>
                             </div>
 
-                            <div class="mx-2 my-0 max-h-[70vh] overflow-y-scroll scrollbar-none [&>div]:transition-all [&>div]:transition-discrete [&>div]:duration-500 [&>div]:starting:opacity-0 [&>div]:starting:scale-90">
+                            <div class="mx-2 my-0 max-h-[80vh] overflow-y-scroll scrollbar-none [&>div]:transition-all [&>div]:transition-discrete [&>div]:duration-500 [&>div]:starting:opacity-0 [&>div]:starting:scale-90">
                                 <Show when={expected_children() !== undefined}>
                                     {expected_children()}
                                 </Show>

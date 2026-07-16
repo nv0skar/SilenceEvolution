@@ -1,17 +1,12 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { SessionContext } from "@admin/Admin.tsx";
-import {
-    type Endpoint,
-    type EndpointByFile,
-    EndpointsContext,
-} from "@admin/endpoints";
+import AppCx from "@admin/AppCx";
+import { type Endpoint, type EndpointByFile } from "@admin/endpoints";
 
-import Modal from "@admin/components/Modal.tsx";
-import AlertBox, {
-    type AlertStruct,
-} from "@admin/components/AlertContainer.tsx";
+import Modal from "@admin/components/Modal";
+import AlertBox, { type AlertStruct } from "@admin/components/AlertContainer";
+import SearchButton from "@admin/components/SearchButton";
 import { SortableColumnCell } from "@admin/components/List";
 
 import {
@@ -34,9 +29,9 @@ import { filter, pipe, sortBy } from "remeda";
 import { loadGrammar } from "@arborium/arborium";
 
 export default (props: RouteSectionProps) => {
-    const session_context = useContext(SessionContext);
+    const app_cx = useContext(AppCx)!;
 
-    if (!session_context) throw new Error("Can't find user's context");
+    const [endpoints, { refetch }] = app_cx.get_resource("endpoints");
 
     const navigate = useNavigate();
 
@@ -60,52 +55,7 @@ export default (props: RouteSectionProps) => {
         undefined,
     );
 
-    // Load endpoints.
-    const [endpoints, { refetch }] = createResource(
-        async (): Promise<Array<EndpointByFile>> => {
-            const res = await fetch("/api/internal/endpoints");
-
-            if (!res.ok) console.clear();
-
-            if (res.status === 200) {
-                const data = (await res.json()) as Array<
-                    Array<string | Array<Endpoint>>
-                >;
-
-                let endpoints: Array<EndpointByFile> = new Array();
-
-                for (const endpoints_path of data) {
-                    for (const endpoint of endpoints_path[1] as Array<Endpoint>) {
-                        // Instantiate endpoint in order to define a fixed order.
-                        endpoints.push({
-                            path: endpoints_path[0] as string | null,
-                            endpoint: {
-                                id: endpoint.id,
-                                database: endpoint.database,
-                                route: endpoint.route,
-                                version: endpoint.version,
-                                method: endpoint.method.toUpperCase(),
-                                execute: endpoint.execute,
-                                query_params: endpoint.query_params,
-                                body_params: endpoint.body_params,
-                                description: endpoint.description,
-                                require_auth: endpoint.require_auth,
-                                allowed_roles: endpoint.allowed_roles,
-                                inject_auth_metadata:
-                                    endpoint.inject_auth_metadata,
-                                auto_generated: endpoint.auto_generated,
-                            },
-                        } as EndpointByFile);
-                    }
-                }
-
-                return endpoints;
-            } else {
-                return new Array();
-            }
-        },
-    );
-
+    // Rendered list.
     const [endpoints_list, set_endpoints_list] = createSignal<
         Array<EndpointByFile>
     >(new Array());
@@ -190,52 +140,9 @@ export default (props: RouteSectionProps) => {
                                     Create new endpoint
                                 </span>
                             </A>
-                            <button
-                                class="btn text-sm self-end text-right ml-auto"
-                                classList={{
-                                    "btn-primary":
-                                        get_search() !== undefined &&
-                                        get_search()?.length !== 0,
-                                }}
-                                popovertarget="search-dropdown"
-                                style="anchor-name:--search-dropdown"
-                            >
-                                <span class="material-symbols-outlined">
-                                    search
-                                </span>
-                            </button>
-                            <ul
-                                id="search-dropdown"
-                                class="dropdown menu w-64 rounded-box bg-base-200/25 border-base-300 border backdrop-blur-sm backdrop-brightness-110 shadow-lg opacity-0 [&:popover-open]:opacity-100 starting:opacity-0 transition-all transition-discrete duration-200"
-                                classList={{
-                                    hidden: resolved_children() !== undefined,
-                                }}
-                                style="position-anchor:--search-dropdown; inset: auto; align-self: anchor-center; justify-self: anchor-left; margin: 0.5rem;"
-                                onMouseLeave={(event) =>
-                                    (
-                                        event.currentTarget as HTMLUListElement
-                                    ).togglePopover()
-                                }
-                                popover
-                            >
-                                <li>
-                                    <input
-                                        class="input"
-                                        placeholder="Search"
-                                        onInput={(event) =>
-                                            set_search(
-                                                event.currentTarget.value ??
-                                                    undefined,
-                                            )
-                                        }
-                                        onFocus={(event) => {
-                                            event.currentTarget.value = "";
-                                            set_search(undefined);
-                                        }}
-                                        autofocus
-                                    ></input>
-                                </li>
-                            </ul>
+                            <SearchButton
+                                search={[get_search, set_search]}
+                            ></SearchButton>
                             <button
                                 class="btn text-sm self-end text-right ml-auto"
                                 onClick={refetch}
@@ -253,7 +160,7 @@ export default (props: RouteSectionProps) => {
                                 <span
                                     class="text-xs text-blue-900 dark:text-blue-500 font-semibold self-center"
                                     classList={{
-                                        "text-red-500": get_full_data(),
+                                        "text-red-500!": get_full_data(),
                                     }}
                                 >
                                     {get_full_data()
@@ -284,16 +191,7 @@ export default (props: RouteSectionProps) => {
                         </div>
                     }
                 >
-                    <Modal parent_path="/endpoints">
-                        <EndpointsContext.Provider
-                            value={{
-                                endpoints_data: endpoints()!,
-                                refetch_endpoints: refetch,
-                            }}
-                        >
-                            {props.children}
-                        </EndpointsContext.Provider>
-                    </Modal>
+                    <Modal parent_path="/endpoints">{props.children}</Modal>
 
                     <div
                         class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95"
@@ -683,6 +581,9 @@ export default (props: RouteSectionProps) => {
                                                             Modify
                                                         </span>
                                                     </button>
+                                                </li>
+
+                                                <li>
                                                     <button
                                                         onClick={(_) => {
                                                             navigate(

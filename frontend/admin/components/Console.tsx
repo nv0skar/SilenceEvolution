@@ -36,6 +36,11 @@ export default () => {
         set_error(true);
     };
 
+    document.addEventListener("keydown", (event) => {
+        if (event.metaKey && event.key === "/")
+            root_pseudocontainer!.style.height = "0vh";
+    });
+
     return (
         <>
             <Portal>

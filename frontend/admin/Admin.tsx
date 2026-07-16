@@ -1,11 +1,13 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type ConfigStruct } from "@admin/Config.tsx";
+import AppCx from "@admin/AppCx";
 
-import Console from "@admin/components/Console.tsx";
+import { logout } from "@admin/Session";
 
-import { createContext, createResource, Show, type Resource } from "solid-js";
+import Console from "@admin/components/Console";
+
+import { Show, useContext } from "solid-js";
 
 import {
     A,
@@ -14,78 +16,35 @@ import {
     type RouteSectionProps,
 } from "@solidjs/router";
 
-export const SessionContext = createContext<Resource<SessionStruct>>();
+import { pipe, filter, split, first } from "remeda";
 
-export const ConfigContext = createContext<ConfigStruct>();
-
-interface SessionStruct {
-    user_id: number;
-    name: string;
-    email: string;
-    role: string | null;
-}
-
-const Logout = async () => {
-    await fetch("/api/internal/logout");
-    document.location = "/";
+export const current_component = (full_path: string) => {
+    return pipe(
+        full_path,
+        split("/"),
+        filter((str) => str.length !== 0 && str !== "admin"),
+        first(),
+    );
 };
 
 export default (props: RouteSectionProps) => {
+    const app_cx = useContext(AppCx)!;
+
+    const [session] = app_cx.get_resource("session");
+    const [config] = app_cx.get_resource("config");
+
     const location = useLocation();
 
     const navigate = useNavigate();
 
-    // Load user data.
-    const [user] = createResource(async (): Promise<SessionStruct> => {
-        const res = await fetch("/api/internal/whoami");
-
-        if (!res.ok) console.clear();
-
-        if (res.status === 200) {
-            const data = await res.json();
-
-            if ((data as SessionStruct).role !== "admin") {
-                const res = await fetch("/api/internal/bootstrap");
-
-                const maybe_new_role = (await res.json()) as {
-                    role: string | null;
-                };
-
-                data.role = maybe_new_role.role;
-            }
-
-            return data as SessionStruct;
-        } else {
-            document.location.replace("/auth?redirect=/admin");
-            throw new Error("User is not logged in.");
-        }
-    });
-
-    // Load project's config.
-    const [config] = createResource(async (): Promise<ConfigStruct> => {
-        const res = await fetch("/api/internal/admin/config");
-
-        if (!res.ok) console.clear();
-
-        if (res.status === 200) {
-            const data = await res.json();
-            return data as ConfigStruct;
-        } else {
-            throw new Error("Couldn't load project's config.");
-        }
-    });
-
     document.addEventListener("keydown", (event) => {
+        const redirect_path = current_component(location.pathname)!;
+
         if (event.key === "Escape")
-            navigate(
-                location.pathname.includes("endpoints")
-                    ? "/endpoints"
-                    : "/users",
-                {
-                    replace: false,
-                    scroll: false,
-                },
-            );
+            navigate(redirect_path, {
+                replace: false,
+                scroll: false,
+            });
     });
 
     return (
@@ -134,7 +93,7 @@ export default (props: RouteSectionProps) => {
                                 </A>
                             </div>
                             <div class="navbar-end">
-                                <Show when={user() !== undefined}>
+                                <Show when={session() !== undefined}>
                                     <button
                                         class="btn btn-ghost"
                                         popovertarget="user-dropdown"
@@ -143,7 +102,7 @@ export default (props: RouteSectionProps) => {
                                         <div class="inline text-sm">
                                             <span class="text-sm">Hi, </span>
                                             <span class="dark:text-emerald-400 text-sm font-bold">
-                                                {user()!.name}
+                                                {session()!.name}
                                             </span>
                                         </div>
                                     </button>
@@ -154,7 +113,7 @@ export default (props: RouteSectionProps) => {
                                         popover
                                     >
                                         <li>
-                                            <button onClick={Logout}>
+                                            <button onClick={logout}>
                                                 <span class="material-symbols-outlined text-xs">
                                                     logout
                                                 </span>
@@ -169,15 +128,15 @@ export default (props: RouteSectionProps) => {
                         </div>
                     </nav>
                     <div class="absolute top-0 left-0 p-8 px-3 lg:pl-26 lg:pr-8 pt-24 w-screen h-screen z-0">
-                        <Show when={user() !== undefined}>
+                        <Show when={session() !== undefined}>
                             <Show
-                                when={user()!.role === "admin"}
+                                when={session()!.role === "admin"}
                                 fallback={
                                     <div class="flex justify-center items-center top-0 text-2xl text-center font-bold leading-relaxed">
                                         <div>
                                             <span>
                                                 Hmmm... It seems you shouldn't
-                                                be here {user()!.name}.{" "}
+                                                be here {session()!.name}.{" "}
                                             </span>
                                             <br />
                                             <span class="text-error">
@@ -197,17 +156,14 @@ export default (props: RouteSectionProps) => {
                                                 </code>{" "}
                                                 role to the user id{" "}
                                                 <code class="bg-base-300 p-2 rounded-sm">
-                                                    {user()!.user_id}
+                                                    {session()!.user_id}
                                                 </code>
                                             </span>
                                         </div>
                                     </div>
                                 }
                             >
-                                <SessionContext.Provider value={user}>
-                                    {props.children}
-                                </SessionContext.Provider>
-
+                                {props.children}
                                 <Console />
                             </Show>
                         </Show>
@@ -238,6 +194,16 @@ export default (props: RouteSectionProps) => {
                                     </span>
                                     <span class="is-drawer-close:hidden">
                                         Endpoints
+                                    </span>
+                                </A>
+                            </li>
+                            <li>
+                                <A href="/tests">
+                                    <span class="material-symbols-outlined scale-95">
+                                        science
+                                    </span>
+                                    <span class="is-drawer-close:hidden">
+                                        Tests
                                     </span>
                                 </A>
                             </li>

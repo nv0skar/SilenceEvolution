@@ -1,15 +1,16 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { type Endpoint, EndpointsContext } from "@admin/endpoints";
+import AppCx from "@admin/AppCx";
 
-import AlertBox, {
-    type AlertStruct,
-} from "@admin/components/AlertContainer.tsx";
-import { confirm_btn } from "@admin/components/Button.tsx";
+import { type Endpoint } from "@admin/endpoints";
+
+import AlertBox, { type AlertStruct } from "@admin/components/AlertContainer";
+import { confirm_btn } from "@admin/components/ConfirmButton";
 
 import {
     createEffect,
+    createMemo,
     createResource,
     createSignal,
     Show,
@@ -25,9 +26,9 @@ import {
 import { loadGrammar } from "@arborium/arborium";
 
 export default (_: RouteSectionProps) => {
-    const endpoints_context = useContext(EndpointsContext);
+    const app_cx = useContext(AppCx)!;
 
-    if (!endpoints_context) return <span></span>; // This component may be rendered twice, one of the renders will happen with endpoints' context undefined.
+    const [endpoints, { refetch }] = app_cx.get_resource("endpoints");
 
     const navigate = useNavigate();
 
@@ -37,12 +38,13 @@ export default (_: RouteSectionProps) => {
 
     const id = useParams()["id"];
 
-    const endpoint_data =
-        id !== undefined
-            ? endpoints_context.endpoints_data.filter((endpoint_pair) => {
+    const endpoint_by_file = createMemo(() => {
+        return id !== undefined && endpoints() !== undefined
+            ? endpoints()!.filter((endpoint_pair) => {
                   return endpoint_pair.endpoint.id == id;
               })[0]!
             : undefined;
+    });
 
     const submit_endpoint = async () => {
         const form = document.getElementById("form")! as HTMLFormElement;
@@ -87,7 +89,7 @@ export default (_: RouteSectionProps) => {
                 form_data["auto_generated"]?.toString() == "on" ? true : false,
         } as Endpoint;
 
-        if (endpoint_data) {
+        if (endpoint_by_file()) {
             for (const field in req) {
                 const value = req[field as keyof Endpoint];
                 if (
@@ -99,9 +101,9 @@ export default (_: RouteSectionProps) => {
         }
 
         const res = await fetch(
-            `/api/internal/admin/endpoints/${endpoint_data ? endpoint_data!.endpoint.id : ""}${(form_data["path"] ?? "".length !== 0) ? `?target_file=${form_data["path"]}` : ""}`,
+            `/api/internal/admin/endpoints/${endpoint_by_file() ? endpoint_by_file()!.endpoint.id : ""}${(form_data["path"] ?? "".length !== 0) ? `?target_file=${form_data["path"]}` : ""}`,
             {
-                method: endpoint_data ? "put" : "post",
+                method: endpoint_by_file() ? "put" : "post",
                 body: JSON.stringify(req),
             },
         );
@@ -118,7 +120,7 @@ export default (_: RouteSectionProps) => {
             return;
         }
 
-        endpoints_context.refetch_endpoints();
+        refetch();
 
         navigate("/endpoints", {
             replace: false,
@@ -128,14 +130,14 @@ export default (_: RouteSectionProps) => {
 
     const delete_endpoint = async () => {
         const res = await fetch(
-            `/api/internal/admin/endpoints/${endpoint_data!.endpoint.id}`,
+            `/api/internal/admin/endpoints/${endpoint_by_file()!.endpoint.id}`,
             { method: "delete" },
         );
 
         if (!res.ok) console.clear();
 
         if (res.status === 200) {
-            endpoints_context.refetch_endpoints();
+            refetch();
 
             navigate("/endpoints", {
                 replace: false,
@@ -167,10 +169,12 @@ export default (_: RouteSectionProps) => {
     };
 
     createEffect(async () => {
-        if (endpoint_data !== undefined)
+        if (endpoint_by_file() !== undefined)
             format_sql(
-                endpoint_data.endpoint.execute
-                    ?.queries!.map((mysql_query) => mysql_query.query)
+                endpoint_by_file()!
+                    .endpoint.execute?.queries!.map(
+                        (mysql_query) => mysql_query.query,
+                    )
                     .join("; ") ?? "",
             );
     });
@@ -186,17 +190,18 @@ export default (_: RouteSectionProps) => {
             <div class="grid gap-2 py-8">
                 <div>
                     <h1 class="text-3xl text-center pt-4 font-bold">
-                        {endpoint_data !== undefined
-                            ? `✏️ ${endpoint_data.endpoint.id}`
+                        {endpoint_by_file()
+                            ? `✏️ ${endpoint_by_file()!.endpoint.id}`
                             : "New endpoint"}
                     </h1>
                 </div>
                 <Show
                     when={
-                        endpoint_data === undefined ||
-                        (endpoint_data!.endpoint.execute !== null &&
-                            endpoint_data!.endpoint.version?.split("/")[0] !==
-                                "internal")
+                        endpoint_by_file() === undefined ||
+                        (endpoint_by_file()!.endpoint.execute !== null &&
+                            endpoint_by_file()!.endpoint.version?.split(
+                                "/",
+                            )[0] !== "internal")
                     }
                     fallback={
                         <span>
@@ -231,11 +236,11 @@ export default (_: RouteSectionProps) => {
                                     type="text"
                                     class="input peer"
                                     placeholder={
-                                        endpoint_data
-                                            ? endpoint_data.endpoint.id
+                                        endpoint_by_file()
+                                            ? endpoint_by_file()!.endpoint.id
                                             : "ID"
                                     }
-                                    required={endpoint_data === undefined}
+                                    required={endpoint_by_file() === undefined}
                                 />
                                 <p class="text-info pt-1 hidden peer-focus:block">
                                     An unique identifier for each endpoint.
@@ -249,12 +254,12 @@ export default (_: RouteSectionProps) => {
                                     type="text"
                                     class="input font-mono"
                                     value={
-                                        endpoint_data
-                                            ? endpoint_data.endpoint.route
+                                        endpoint_by_file()
+                                            ? endpoint_by_file()!.endpoint.route
                                             : ""
                                     }
                                     placeholder="Route"
-                                    required={endpoint_data === undefined}
+                                    required={endpoint_by_file() === undefined}
                                 />
                             </label>
 
@@ -265,11 +270,12 @@ export default (_: RouteSectionProps) => {
                                     type="text"
                                     class="input peer"
                                     placeholder={
-                                        endpoint_data
-                                            ? endpoint_data.endpoint.method
+                                        endpoint_by_file() !== undefined
+                                            ? endpoint_by_file()!.endpoint
+                                                  .method
                                             : "Method"
                                     }
-                                    required={endpoint_data === undefined}
+                                    required={endpoint_by_file === undefined}
                                 />
                                 <p class="text-info pt-1 hidden peer-focus:block">
                                     HINT: available GET, POST, PUT and DELETE.
@@ -283,9 +289,9 @@ export default (_: RouteSectionProps) => {
                                     type="text"
                                     class="input peer font-mono"
                                     value={
-                                        endpoint_data
+                                        endpoint_by_file()
                                             ? (
-                                                  endpoint_data.endpoint
+                                                  endpoint_by_file()!.endpoint
                                                       .body_params ?? [""]
                                               ).join(", ")
                                             : ""
@@ -315,11 +321,11 @@ export default (_: RouteSectionProps) => {
                                         class="bg-transparent p-3 border text-transparent caret-info col-start-1 row-start-1 whitespace-pre-wrap w-full min-h-14 not-focus:text-transparent z-20 min-w-0 outline-0  resize-none"
                                         spellcheck="false"
                                         value={
-                                            endpoint_data
-                                                ? endpoint_data.endpoint
+                                            endpoint_by_file()
+                                                ? endpoint_by_file()!.endpoint
                                                       .execute !== undefined
-                                                    ? endpoint_data.endpoint
-                                                          .execute!.queries!.map(
+                                                    ? endpoint_by_file()!
+                                                          .endpoint.execute!.queries!.map(
                                                               (mysql_query) =>
                                                                   mysql_query.query,
                                                           )
@@ -333,7 +339,9 @@ export default (_: RouteSectionProps) => {
                                                 event.currentTarget.value,
                                             );
                                         }}
-                                        required={endpoint_data === undefined}
+                                        required={
+                                            endpoint_by_file() === undefined
+                                        }
                                     />
                                 </div>
                             </div>
@@ -351,11 +359,14 @@ export default (_: RouteSectionProps) => {
                                             name="version"
                                             type="text"
                                             class="input font-mono"
-                                            value={!endpoint_data ? "v1" : ""}
+                                            value={
+                                                !endpoint_by_file ? "v1" : ""
+                                            }
                                             placeholder={
-                                                endpoint_data
-                                                    ? (endpoint_data.endpoint
-                                                          .version ?? "—")
+                                                endpoint_by_file()
+                                                    ? (endpoint_by_file()!
+                                                          .endpoint.version ??
+                                                      "—")
                                                     : "Version"
                                             }
                                         />
@@ -368,8 +379,9 @@ export default (_: RouteSectionProps) => {
                                             type="text"
                                             class="input"
                                             value={
-                                                endpoint_data
-                                                    ? (endpoint_data.endpoint
+                                                endpoint_by_file()
+                                                    ? (endpoint_by_file()!
+                                                          .endpoint
                                                           .description ?? "")
                                                     : ""
                                             }
@@ -384,9 +396,10 @@ export default (_: RouteSectionProps) => {
                                             type="text"
                                             class="input peer font-mono"
                                             value={
-                                                endpoint_data
+                                                endpoint_by_file()
                                                     ? (
-                                                          endpoint_data.endpoint
+                                                          endpoint_by_file()!
+                                                              .endpoint
                                                               .query_params ?? [
                                                               "",
                                                           ]
@@ -411,9 +424,10 @@ export default (_: RouteSectionProps) => {
                                             type="text"
                                             class="input font-mono"
                                             value={
-                                                endpoint_data
+                                                endpoint_by_file()
                                                     ? (
-                                                          endpoint_data.endpoint
+                                                          endpoint_by_file()!
+                                                              .endpoint
                                                               .allowed_roles ?? [
                                                               "",
                                                           ]
@@ -431,13 +445,13 @@ export default (_: RouteSectionProps) => {
                                             type="text"
                                             class="input font-mono"
                                             placeholder={
-                                                endpoint_data
-                                                    ? (endpoint_data.path ??
-                                                      "—")
+                                                endpoint_by_file()
+                                                    ? (endpoint_by_file()!
+                                                          .path ?? "—")
                                                     : "Path"
                                             }
                                             readOnly={
-                                                endpoint_data !== undefined
+                                                endpoint_by_file() !== undefined
                                             }
                                         />
                                     </label>
@@ -453,9 +467,9 @@ export default (_: RouteSectionProps) => {
                                             type="checkbox"
                                             class="checkbox"
                                             checked={
-                                                endpoint_data
-                                                    ? endpoint_data.endpoint
-                                                          .require_auth
+                                                endpoint_by_file()
+                                                    ? endpoint_by_file()!
+                                                          .endpoint.require_auth
                                                     : false
                                             }
                                         />
@@ -470,8 +484,9 @@ export default (_: RouteSectionProps) => {
                                             type="checkbox"
                                             class="checkbox"
                                             checked={
-                                                endpoint_data
-                                                    ? endpoint_data.endpoint
+                                                endpoint_by_file()
+                                                    ? endpoint_by_file()!
+                                                          .endpoint
                                                           .inject_auth_metadata
                                                     : false
                                             }
@@ -486,7 +501,7 @@ export default (_: RouteSectionProps) => {
                             id="delete_endpoint"
                             class="btn btn-active hover:text-white hover:bg-red-600"
                             classList={{
-                                hidden: endpoint_data === undefined,
+                                hidden: endpoint_by_file() === undefined,
                             }}
                             data-confirmed={false}
                             onClick={confirm_btn(delete_endpoint)}
@@ -498,12 +513,13 @@ export default (_: RouteSectionProps) => {
                             type="submit"
                             class="btn btn-active hover:text-black hover:btn-success"
                             classList={{
-                                "btn-disabled": endpoint_data === undefined,
+                                "btn-disabled":
+                                    endpoint_by_file() === undefined,
                             }}
                             data-confirmed={false}
                             onClick={confirm_btn(submit_endpoint)}
                         >
-                            {endpoint_data ? "Update" : "Create endpoint"}
+                            {endpoint_by_file() ? "Update" : "Create endpoint"}
                         </button>
                     </div>
                 </Show>

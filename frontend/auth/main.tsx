@@ -1,10 +1,10 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import Auth from "./Auth.tsx";
+import Auth from "./Auth";
 
-import Login from "./Login.tsx";
-import Signup from "./Signup.tsx";
+import Login from "./Login";
+import Signup from "./Signup";
 
 import { render } from "solid-js/web";
 import { Router, Route } from "@solidjs/router";

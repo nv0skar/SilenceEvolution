@@ -2,8 +2,7 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 import AppCx from "@admin/AppCx";
-
-import { type User } from "@admin/users";
+import { fetcher, type TestByFile } from "@admin/tests";
 
 import AlertBox, { type AlertStruct } from "@admin/components/AlertContainer";
 import Modal from "@admin/components/Modal";
@@ -13,6 +12,7 @@ import { SortableColumnCell } from "@admin/components/List";
 import {
     children,
     createEffect,
+    createResource,
     createSignal,
     Index,
     on,
@@ -29,7 +29,7 @@ import { filter, pipe, sortBy } from "remeda";
 export default (props: RouteSectionProps) => {
     const app_cx = useContext(AppCx)!;
 
-    const [users, { refetch }] = app_cx.get_resource("users");
+    const [tests, { refetch }] = app_cx.get_resource("tests");
 
     const navigate = useNavigate();
 
@@ -51,7 +51,9 @@ export default (props: RouteSectionProps) => {
     );
 
     // Rendered list.
-    const [users_list, set_users_list] = createSignal<Array<User>>(new Array());
+    const [tests_list, set_tests_list] = createSignal<Array<TestByFile>>(
+        new Array(),
+    );
 
     const resolved_children = children(() => props.children);
 
@@ -66,21 +68,28 @@ export default (props: RouteSectionProps) => {
     );
 
     createEffect(() => {
-        if (users() !== undefined)
-            set_users_list(
+        if (tests() !== undefined)
+            set_tests_list(
                 pipe(
-                    users() ?? new Array(),
+                    tests()!,
                     sortBy([
-                        (user) => user[get_table_sort().field as keyof User]!,
+                        (test_by_file) =>
+                            test_by_file.test[
+                                get_table_sort().field as keyof TestByFile
+                            ]!,
                         get_table_sort().order,
                     ]),
-                    filter((user) => {
+                    filter((test_by_file) => {
                         if (get_search() !== undefined) {
                             const search_term = get_search()!.toLowerCase();
 
                             return (
-                                user.name.toLowerCase().includes(search_term) ||
-                                user.email.toLowerCase().includes(search_term)
+                                test_by_file.test
+                                    .name!.toLowerCase()
+                                    .includes(search_term) ||
+                                test_by_file.test
+                                    .description!.toLowerCase()
+                                    .includes(search_term)
                             );
                         } else return true;
                     }),
@@ -99,7 +108,7 @@ export default (props: RouteSectionProps) => {
             <div>
                 <div class="flex flex-col gap-3 pb-3 items-center w-full">
                     <div class="flex not-lg:flex-col not-lg:gap-3 items-center w-full">
-                        <h1 class="text-4xl font-bold">Users</h1>
+                        <h1 class="text-4xl font-bold">Tests</h1>
                         <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-2xl">
                             <SearchButton
                                 search={[get_search, set_search]}
@@ -114,13 +123,13 @@ export default (props: RouteSectionProps) => {
                             </button>
                             <A
                                 class="btn text-sm self-end text-right ml-auto"
-                                href="/users/new"
+                                href="/tests/new"
                             >
                                 <span class="material-symbols-outlined lg:hidden!">
                                     add
                                 </span>
                                 <span class="not-lg:hidden">
-                                    Create new user
+                                    Create new test
                                 </span>
                             </A>
                         </div>
@@ -133,14 +142,14 @@ export default (props: RouteSectionProps) => {
                 </div>
 
                 <Show
-                    when={!users.loading}
+                    when={!tests.loading}
                     fallback={
                         <div class="flex w-full my-8 justify-center">
                             <span class="loading loading-spinner loading-xl"></span>
                         </div>
                     }
                 >
-                    <Modal parent_path="/users">{props.children}</Modal>
+                    <Modal parent_path="/tests">{props.children}</Modal>
 
                     <div
                         class="overflow-x-auto transition-all transition-discrete duration-500 starting:opacity-0 starting:scale-95"
@@ -149,17 +158,8 @@ export default (props: RouteSectionProps) => {
                         <div class="table text-sm table-auto border-collapse">
                             <div class="table-header-group border-b-2 border-b-base-300">
                                 <div class="table-row font-bold bg-base-300 [&>div]:w-auto [&>div]:p-3 [&_div]:align-middle [&>div]:text-left [&>div]:rounded-none">
-                                    <SortableColumnCell
-                                        title="ID"
-                                        field="user_id"
-                                        classList={{
-                                            "rounded-tl-xl! pl-8!": true,
-                                        }}
-                                        table_sort={[
-                                            get_table_sort,
-                                            set_table_sort,
-                                        ]}
-                                    />
+                                    <div class="table-cell rounded-tl-xl!"></div>
+
                                     <SortableColumnCell
                                         title="Name"
                                         field="name"
@@ -169,22 +169,29 @@ export default (props: RouteSectionProps) => {
                                         ]}
                                     />
                                     <SortableColumnCell
-                                        title="Email"
-                                        field="email"
+                                        title="Description"
+                                        field="description"
                                         table_sort={[
                                             get_table_sort,
                                             set_table_sort,
                                         ]}
                                     />
-                                    <div class="table-cell">Role</div>
+                                    <SortableColumnCell
+                                        title="Target endpoint"
+                                        field="target_endpoint_id"
+                                        table_sort={[
+                                            get_table_sort,
+                                            set_table_sort,
+                                        ]}
+                                    />
                                     <div class="table-cell rounded-tr-xl!">
-                                        Password
+                                        Path
                                     </div>
                                 </div>
                             </div>
                             <div class="table-row-group [&>div]:even:bg-base-200 [&>div]:hover:bg-base-300 [&>div]:transition [&>div]:duration-200 [&>div]:hover:scale-101 [&>div]:hover:cursor-pointer">
                                 <Index
-                                    each={users_list()}
+                                    each={tests_list()}
                                     fallback={
                                         <Portal mount={table_container!}>
                                             <div class="flex my-8 justify-center items-center text-center">
@@ -196,12 +203,12 @@ export default (props: RouteSectionProps) => {
                                         </Portal>
                                     }
                                 >
-                                    {(user, _) => (
+                                    {(test, ix) => (
                                         <div
                                             class="table-row border-b border-b-base-300 [&_span]:text-xs [&_span]:lg:text-sm [&_div]:size-auto [&_div]:p-2 [&_div]:align-middle"
                                             onClick={() =>
                                                 navigate(
-                                                    `/users/${user().user_id}`,
+                                                    `/tests/${test().test.name}`,
                                                     {
                                                         replace: false,
                                                         scroll: false,
@@ -209,20 +216,20 @@ export default (props: RouteSectionProps) => {
                                                 )
                                             }
                                         >
-                                            <div class="table-cell font-light pl-8!">
-                                                {user().user_id}
+                                            <div class="table-cell font-light pl-8! align-middle">
+                                                {ix}
                                             </div>
                                             <div class="table-cell font-bold">
-                                                {user().name}
+                                                {test().test.name}
                                             </div>
                                             <div class="table-cell">
-                                                {user().email}
+                                                {test().test.description}
                                             </div>
                                             <div class="table-cell">
-                                                {user().role ?? "—"}
+                                                {test().test.target_endpoint_id}
                                             </div>
-                                            <div class="table-cell [&_span]:hidden after:content-['********'] after:text-base-content hover:[&_span]:block hover:after:hidden pr-4!">
-                                                <span>{user().password}</span>
+                                            <div class="table-cell font-mono pr-4!">
+                                                {test().path ?? "—"}
                                             </div>
                                         </div>
                                     )}

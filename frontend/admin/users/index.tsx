@@ -1,7 +1,7 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { createContext } from "solid-js";
+import { type ResourceReturn } from "solid-js";
 
 import { pipe, map } from "remeda";
 
@@ -13,10 +13,7 @@ export interface User {
     password: string;
 }
 
-export const UsersContext = createContext<{
-    users: Array<User>;
-    refetch: Function;
-}>();
+export type UsersContext = ResourceReturn<Array<User>, any>;
 
 export const fetcher = async (): Promise<Array<User>> => {
     const res = await fetch("/api/internal/admin/users");

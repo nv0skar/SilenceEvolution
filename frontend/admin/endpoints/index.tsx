@@ -1,7 +1,9 @@
 // SilenceEvolution
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
-import { createContext } from "solid-js";
+import { type ResourceReturn } from "solid-js";
+
+import { pipe, filter, join } from "remeda";
 
 export type EndpointByFile = {
     path: string | null;
@@ -31,10 +33,40 @@ export interface Endpoint {
     auto_generated: boolean;
 }
 
-export const EndpointsContext = createContext<{
-    endpoints_data: Array<{
-        path: string | null;
-        endpoint: Endpoint;
-    }>;
-    refetch_endpoints: Function;
-}>();
+export type EndpointsContext = ResourceReturn<Array<EndpointByFile>, any>;
+
+export const fetcher = async (): Promise<Array<EndpointByFile>> => {
+    const res = await fetch("/api/internal/endpoints");
+
+    if (!res.ok) console.clear();
+
+    if (res.status === 200) {
+        const data = (await res.json()) as Array<
+            Array<string | Array<Endpoint>>
+        >;
+
+        let endpoints: Array<EndpointByFile> = new Array();
+
+        for (const endpoints_path of data) {
+            for (let endpoint of endpoints_path[1] as Array<Endpoint>) {
+                endpoint.method = endpoint.method.toUpperCase();
+
+                endpoints.push({
+                    path: endpoints_path[0] as string | null,
+                    endpoint,
+                });
+            }
+        }
+
+        return endpoints;
+    } else {
+        return new Array();
+    }
+};
+
+export const normalize_route = (route: string, version?: string) =>
+    `/${pipe(
+        `/api/${version}/${route}`.split("/"),
+        filter((str) => str.length !== 0),
+        join("/"),
+    )}`;
