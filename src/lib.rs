@@ -42,7 +42,7 @@ use derive_more::Constructor;
 use derive_more::Display;
 use futures::{SinkExt, future::BoxFuture, stream::StreamExt};
 use getset::*;
-use http_body_util::{BodyExt, combinators::BoxBody};
+use http_body_util::{BodyExt, Full, combinators::BoxBody};
 use hyper::Request;
 use hyper::{Response, StatusCode};
 use hyper_tungstenite::*;

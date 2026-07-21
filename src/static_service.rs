@@ -8,8 +8,8 @@ use crate::*;
 #[folder = "./target/frontend"]
 pub struct StaticService;
 
-impl Service<Request<BoxBody<ConnBytes, anyhow::Error>>> for StaticService {
-    type Response = Response<String>;
+impl Service<Request<ConnBody>> for StaticService {
+    type Response = Response<ConnBody>;
 
     type Error = Infallible;
 
@@ -55,7 +55,7 @@ impl Service<Request<BoxBody<ConnBytes, anyhow::Error>>> for StaticService {
 
                             let content = file.data();
 
-                            Some(String::from_utf8(content.to_vec()).unwrap()) // it requires `.to_vec()` at release.
+                            Some(content.to_vec()) // it requires `.to_vec()` at release.
                         } else {
                             response =
                                 response.header("Content-Type", "application/json; charset=utf-8");
@@ -91,7 +91,7 @@ impl Service<Request<BoxBody<ConnBytes, anyhow::Error>>> for StaticService {
                                         .unwrap_or("text/plain"),
                                 );
 
-                                Some(String::from_utf8(content).unwrap())
+                                Some(content)
                             } else {
                                 None
                             }
@@ -108,16 +108,20 @@ impl Service<Request<BoxBody<ConnBytes, anyhow::Error>>> for StaticService {
             };
 
             if let Some(body) = body {
-                Ok(response.status(200).body(body).unwrap())
+                Ok(response
+                    .status(200)
+                    .body(
+                        Full::new(ConnBytes::from_iter(body))
+                            .map_err(|_| unreachable!())
+                            .boxed(),
+                    )
+                    .unwrap())
             } else {
                 Ok(response
                     .status(404)
-                    .body(
-                        serde_json::to_string_pretty(&json!({
-                            "error": "Resource not found."
-                        }))
-                        .unwrap(),
-                    )
+                    .body(json_conn_body(&json!({
+                        "error": "Resource not found."
+                    })))
                     .unwrap())
             }
         })
