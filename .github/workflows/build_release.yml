@@ -125,7 +125,7 @@ jobs:
 
             # Install cargo-dist.
             - name: Install cargo-dist
-              uses: axodotdev/setup-cargo-dist@v1
+              run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.32.0/cargo-dist-installer.sh | sh
 
             # Build main binary.
             - name: Build Rust application
