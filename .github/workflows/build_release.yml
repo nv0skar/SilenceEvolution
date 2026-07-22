@@ -129,7 +129,19 @@ jobs:
 
             # Build main binary.
             - name: Build Rust application
-              run: dist build --target ${{ matrix.target }}
+              run: |
+                  # 1. Use release tag if triggered by GitHub Release
+                  TAG="${{ github.event.release.tag_name }}"
+
+                  # 2. Fallback for manual workflow_dispatch: extract from package with binary target
+                  if [ -z "$TAG" ]; then
+                    PKG_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.targets[]?.kind[]? | contains("bin")) | .version' | head -n 1)
+                    TAG="v${PKG_VERSION}"
+                  fi
+
+                  # 3. Execute dist with explicit tag
+                  echo "Building for tag: $TAG"
+                  dist build --target ${{ matrix.target }} --tag "$TAG"
 
             # Upload binary artifact.
             - name: Upload binary
