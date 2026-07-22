@@ -64,6 +64,12 @@ jobs:
             matrix:
                 include:
                     - os: ubuntu-latest
+                      target: aarch64-unknown-linux-gnu
+                      artifact_name: silence
+                      bin_name: silence
+                      short_name: linux
+
+                    - os: ubuntu-latest
                       target: x86_64-unknown-linux-gnu
                       artifact_name: silence
                       bin_name: silence
@@ -74,6 +80,12 @@ jobs:
                       artifact_name: silence
                       bin_name: silence
                       short_name: macos
+
+                    - os: windows-latest
+                      target: aarch64-pc-windows-gnullvm
+                      artifact_name: silence
+                      bin_name: silence.exe
+                      short_name: windows
 
                     - os: windows-latest
                       target: x86_64-pc-windows-gnu
@@ -111,16 +123,20 @@ jobs:
                   name: frontend
                   path: target/
 
+            # Install cargo-dist.
+            - name: Install cargo-dist
+              uses: axodotdev/setup-cargo-dist@v1
+
             # Build main binary.
             - name: Build Rust application
-              run: cargo build --release --target ${{ matrix.target }}
+              run: dist build --target ${{ matrix.target }}
 
             # Upload binary artifact.
             - name: Upload binary
               uses: actions/upload-artifact@v4
               with:
                   name: ${{ matrix.artifact_name }}_${{ matrix.target }}
-                  path: target/${{ matrix.target }}/release/${{ matrix.bin_name }}
+                  path: target/distribution/*
                   retention-days: 7
 
     create-release-package:
@@ -134,22 +150,12 @@ jobs:
               with:
                   path: artifacts/
 
-            - name: Package binaries into distinct archives
-              run: |
-                  mkdir assets
-
-                  find artifacts -type f -path "*_x86_64-unknown-linux-gnu/silence" -exec cp {} assets/silence-linux-x86_64 \;
-                  find artifacts -type f -path "*_aarch64-apple-darwin/silence" -exec cp {} assets/silence-macos-aarch64 \;
-                  find artifacts -type f -path "*_x86_64-pc-windows-gnu/silence.exe" -exec cp {} assets/silence-windows-x86_64.exe \;
-
-            - name: Upload binaries to release
+            - name: Upload binaries and installers to release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.event.release.tag_name }}
                   files: |
-                      assets/silence-linux-x86_64
-                      assets/silence-macos-aarch64
-                      assets/silence-windows-x86_64.exe
+                      artifacts/**/*
 
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
