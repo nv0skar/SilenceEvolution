@@ -807,27 +807,39 @@ impl AppCx {
                                 Err(err) => return Err(err),
                             }
                         }
-                        false => match read(file_entry.path()).await {
-                            Ok(file_buffer) => {
-                                match serde_json::from_slice::<CheapVec<T>>(&file_buffer) {
-                                    Ok(des) => des_buff.push((file_entry.path(), des)),
-                                    Err(err) => {
-                                        Err(anyhow!(
-                                            "Cannot deserialize file '{}'.%{}",
-                                            file_entry.file_name().display(),
-                                            err.to_string()
-                                        ))?;
-                                    }
-                                };
+                        false
+                            if file_entry
+                                .file_name()
+                                .to_str()
+                                .map(|val| val.ends_with(".json"))
+                                .unwrap_or(false) =>
+                        {
+                            match read(file_entry.path()).await {
+                                Ok(file_buffer) => {
+                                    match serde_json::from_slice::<CheapVec<T>>(&file_buffer) {
+                                        Ok(des) => des_buff.push((file_entry.path(), des)),
+                                        Err(err) => {
+                                            Err(anyhow!(
+                                                "Cannot deserialize file '{}'.%{}",
+                                                file_entry.file_name().display(),
+                                                err.to_string()
+                                            ))?;
+                                        }
+                                    };
+                                }
+                                Err(err) => {
+                                    Err(anyhow!(
+                                        "Cannot open the file '{}'.%{}",
+                                        file_entry.file_name().display(),
+                                        err.to_string()
+                                    ))?;
+                                }
                             }
-                            Err(err) => {
-                                Err(anyhow!(
-                                    "Cannot open the file '{}'.%{}",
-                                    file_entry.file_name().display(),
-                                    err.to_string()
-                                ))?;
-                            }
-                        },
+                        }
+                        _ => debug!(
+                            "Skipping file `{}` as it doesn't end with `.json`.",
+                            file_entry.file_name().display()
+                        ),
                     }
                 }
             }
