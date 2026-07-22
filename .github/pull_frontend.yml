@@ -1,0 +1,7 @@
+# Download pre-built frontend.
+- name: Download frontend dist
+  uses: actions/download-artifact@v4
+  with:
+      name: frontend
+      path: target/
+      if-no-artifact-found: ignore

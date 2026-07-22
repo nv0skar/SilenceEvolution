@@ -4,7 +4,10 @@ members = ["cargo:."]
 [dist]
 cargo-dist-version = "0.32.0"
 installers = ["shell", "powershell"]
-targets = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "aarch64-apple-darwin", "aarch64-pc-windows-gnullvm", "x86_64-pc-windows-gnu"]
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu", "aarch64-pc-windows-gnullvm"]
 dist-dir = "target/distribution"
-install-path = "CARGO_HOME"
+ci = "github"
+create-release = false
 install-updater = true
+github-build-setup = "../pull_frontend.yml"
+install-path = "CARGO_HOME"

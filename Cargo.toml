@@ -2,6 +2,7 @@
 name = "silence"
 description = "An educational framework for deploying APIs (based on a MySQL schema) and web applications."
 version = "0.0.5"
+repository = "https://github.com/nv0skar/SilenceEvolution"
 edition = "2024"
 
 [dependencies]
