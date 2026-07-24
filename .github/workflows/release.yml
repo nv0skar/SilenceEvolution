@@ -127,12 +127,12 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
-      - name: "Download frontend dist"
-        uses: "actions/download-artifact@v4"
+      - name: "Setup Bun"
+        uses: "oven-sh/setup-bun@v1"
         with:
-          "if-no-artifact-found": "ignore"
-          "name": "frontend"
-          "path": "target/"
+          "bun-version": "latest"
+      - name: "Install frontend dependencies"
+        run: "bun install"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest

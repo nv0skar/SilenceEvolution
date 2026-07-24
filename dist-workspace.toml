@@ -9,5 +9,8 @@ dist-dir = "target/distribution"
 ci = "github"
 create-release = false
 install-updater = true
-github-build-setup = "../pull_frontend.yml"
+github-build-setup = "../pull_frontend_tools.yml"
 install-path = "CARGO_HOME"
+
+[dist.github-custom-runners]
+aarch64-pc-windows-gnullvm = "windows-11-arm"
