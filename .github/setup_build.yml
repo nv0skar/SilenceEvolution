@@ -14,29 +14,25 @@
 - name: Install frontend dependencies
   run: bun install
 
-- name: Install LLVM-MinGW Toolchain for gnullvm
+- name: Setup MSYS2 with Clang ARM64 (gnullvm)
+  if: runner.os == 'Windows' && (runner.arch == 'ARM64' || contains(matrix.runner, 'arm'))
+  uses: msys2/setup-msys2@v2
+  with:
+      msystem: CLANGARM64
+      path-type: inherit
+      install: >-
+          mingw-w64-clang-aarch64-toolchain
+
+- name: Configure gnullvm Environment Variables
   if: runner.os == 'Windows' && (runner.arch == 'ARM64' || contains(matrix.runner, 'arm'))
   shell: pwsh
   run: |
-      # Detect host runner architecture
-      $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
-
-      # Download LLVM-MinGW with UCRT support
-      $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-$arch.zip"
-      curl.exe -sSL --ssl-no-revoke --fail $url -o llvm-mingw.zip
-      Expand-Archive -Path llvm-mingw.zip -DestinationPath C:\llvm-mingw -Force
-
-      # Extract bin path
-      $binDir = (Get-ChildItem -Path C:\llvm-mingw -Directory -Filter "bin" -Recurse | Select-Object -First 1).FullName
-
-      # Update PATH in current step
-      $env:PATH = "$binDir;$env:PATH"
-
-      # Export environment with UTF-8 encoding so GitHub Actions parses it correctly
-      "$binDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      "CC_aarch64_pc_windows_gnullvm=aarch64-w64-mingw32-clang" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      "AR_aarch64_pc_windows_gnullvm=llvm-ar" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=aarch64-w64-mingw32-clang" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      "CC_aarch64_pc_windows_gnullvm=C:\msys64\clangarm64\bin\clang.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
+      "CXX_aarch64_pc_windows_gnullvm=C:\msys64\clangarm64\bin\clang++.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
+      "AR_aarch64_pc_windows_gnullvm=C:\msys64\clangarm64\bin\llvm-ar.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
+      "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=C:\msys64\clangarm64\bin\clang.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
 
 - name: Setup Rust cache
   uses: Swatinem/rust-cache@v2
+  with:
+      cache-all-crates: true
