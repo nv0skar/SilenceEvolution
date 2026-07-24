@@ -127,8 +127,14 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
+      - name: "Cache Bun dependencies"
+        uses: "actions/cache@v4"
+        with:
+          "key": "${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}"
+          "path": "~/.bun/install/cache"
+          "restore-keys": "${{ runner.os }}-bun-\n"
       - name: "Setup Bun"
-        uses: "oven-sh/setup-bun@v1"
+        uses: "oven-sh/setup-bun@v2"
         with:
           "bun-version": "latest"
       - name: "Install frontend dependencies"
@@ -156,6 +162,8 @@ jobs:
           "AR_aarch64_pc_windows_gnullvm=llvm-ar" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=aarch64-w64-mingw32-clang" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         shell: "pwsh"
+      - name: "Setup Rust cache"
+        uses: "Swatinem/rust-cache@v2"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest
