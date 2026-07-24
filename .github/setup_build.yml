@@ -7,21 +7,25 @@
   run: bun install
 
 - name: Install LLVM-MinGW Toolchain for gnullvm
-  if: matrix.target == 'aarch64-pc-windows-gnullvm' || contains(matrix.target, 'gnullvm')
+  if: runner.os == 'Windows' && (runner.arch == 'ARM64' || contains(matrix.runner, 'arm'))
   shell: pwsh
   run: |
-      # Detect host architecture (ARM64 or x86_64)
+      # Detect host runner architecture
       $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
 
-      # Download and extract official LLVM-MinGW
+      # Download LLVM-MinGW with UCRT support
       $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-$arch.zip"
-      curl.exe -L $url -o llvm-mingw.zip
-      Expand-Archive -Path llvm-mingw.zip -DestinationPath C:\llvm-mingw
+      curl.exe -sSL --ssl-no-revoke --fail $url -o llvm-mingw.zip
+      Expand-Archive -Path llvm-mingw.zip -DestinationPath C:\llvm-mingw -Force
 
-      # Locate bin path and append to PATH and GITHUB_ENV
-      $binDir = (Get-ChildItem -Path C:\llvm-mingw -Filter "bin" -Recurse).FullName
-      echo "$binDir" >> $env:GITHUB_PATH
+      # Extract bin path
+      $binDir = (Get-ChildItem -Path C:\llvm-mingw -Directory -Filter "bin" -Recurse | Select-Object -First 1).FullName
 
-      # Tell cargo / cc-rs to use the LLVM-MinGW C compiler wrapper
-      echo "CC_aarch64_pc_windows_gnullvm=aarch64-w64-mingw32-clang" >> $env:GITHUB_ENV
-      echo "AR_aarch64_pc_windows_gnullvm=llvm-ar" >> $env:GITHUB_ENV
+      # Update PATH in current step
+      $env:PATH = "$binDir;$env:PATH"
+
+      # Export environment with UTF-8 encoding so GitHub Actions parses it correctly
+      "$binDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      "CC_aarch64_pc_windows_gnullvm=aarch64-w64-mingw32-clang" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      "AR_aarch64_pc_windows_gnullvm=llvm-ar" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=aarch64-w64-mingw32-clang" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
