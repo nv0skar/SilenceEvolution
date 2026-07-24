@@ -6,7 +6,7 @@ repository = "https://github.com/nv0skar/SilenceEvolution"
 edition = "2024"
 
 [dependencies]
-rustyrosetta = { git = "https://github.com/nv0skar/RustyRosetta.git", tag = "rustyrosetta_0.0.3", features = [
+rustyrosetta = { git = "https://github.com/nv0skar/RustyRosetta.git", tag = "rustyrosetta_0.0.4", features = [
     "all",
 ] }
 
