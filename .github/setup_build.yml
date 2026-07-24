@@ -1,0 +1,27 @@
+- name: Setup Bun
+  uses: oven-sh/setup-bun@v1
+  with:
+      bun-version: latest
+
+- name: Install frontend dependencies
+  run: bun install
+
+- name: Install LLVM-MinGW Toolchain for gnullvm
+  if: matrix.target == 'aarch64-pc-windows-gnullvm' || contains(matrix.target, 'gnullvm')
+  shell: pwsh
+  run: |
+      # Detect host architecture (ARM64 or x86_64)
+      $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
+
+      # Download and extract official LLVM-MinGW
+      $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-$arch.zip"
+      curl.exe -L $url -o llvm-mingw.zip
+      Expand-Archive -Path llvm-mingw.zip -DestinationPath C:\llvm-mingw
+
+      # Locate bin path and append to PATH and GITHUB_ENV
+      $binDir = (Get-ChildItem -Path C:\llvm-mingw -Filter "bin" -Recurse).FullName
+      echo "$binDir" >> $env:GITHUB_PATH
+
+      # Tell cargo / cc-rs to use the LLVM-MinGW C compiler wrapper
+      echo "CC_aarch64_pc_windows_gnullvm=aarch64-w64-mingw32-clang" >> $env:GITHUB_ENV
+      echo "AR_aarch64_pc_windows_gnullvm=llvm-ar" >> $env:GITHUB_ENV

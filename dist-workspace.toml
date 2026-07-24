@@ -9,7 +9,7 @@ dist-dir = "target/distribution"
 ci = "github"
 create-release = false
 install-updater = true
-github-build-setup = "../pull_frontend_tools.yml"
+github-build-setup = "../setup_build.yml"
 install-path = "CARGO_HOME"
 
 [dist.github-custom-runners]
