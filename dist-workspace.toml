@@ -14,4 +14,4 @@ github-build-setup = "../setup_build.yml"
 install-path = "CARGO_HOME"
 
 [dist.github-custom-runners]
-aarch64-pc-windows-gnullvm = "windows-11-arm"
+aarch64-pc-windows-gnullvm = "windows-latest"

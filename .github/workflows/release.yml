@@ -140,38 +140,31 @@ jobs:
       - name: "Install frontend dependencies"
         run: "bun install"
       - name: "Setup LLVM-MinGW Toolchain"
-        if: "runner.os == 'Windows' && (runner.arch == 'ARM64' || contains(matrix.runner, 'arm'))"
+        if: "runner.os == 'Windows' && contains(join(matrix.targets, ','), 'aarch64')"
         run: |
-          # 1. Download LLVM-MinGW for native ARM64 host
-          Write-Host "Downloading LLVM-MinGW for native ARM64..."
-          $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-aarch64.zip"
-          curl.exe -sSL --ssl-no-revoke --fail $url -o llvm-mingw.zip
+          echo "Downloading x86_64 LLVM-MinGW cross-compiler..."
+          curl -sSL --fail "https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-x86_64.zip" -o llvm-mingw.zip
 
-          # 2. Extract toolchain
-          Expand-Archive -Path llvm-mingw.zip -DestinationPath "$env:USERPROFILE\llvm-mingw" -Force
+          mkdir -p llvm_toolchain
+          unzip -q llvm-mingw.zip -d llvm_toolchain
 
-          # 3. Resolve dynamic extracted paths
-          $rootDir = (Get-ChildItem -Path "$env:USERPROFILE\llvm-mingw" -Directory -Filter "llvm-mingw*" | Select-Object -First 1).FullName
-          $binDir  = "$rootDir\bin"
-          $mingwTripleDir = "$rootDir\aarch64-w64-mingw32"
-          $rustTripleDir  = "$rootDir\aarch64-pc-windows-gnullvm"
+          TOOLCHAIN_ROOT=$(ls -d llvm_toolchain/llvm-mingw-*)
 
-          # 4. Create Directory Junction to fix 'assert.h' header resolution for ring/cc-rs
-          if (-not (Test-Path $rustTripleDir)) {
-              New-Item -ItemType Junction -Path $rustTripleDir -Target $mingwTripleDir | Out-Null
-          }
+          BASE_DIR=$(pwd -W)
+          ABS_TOOLCHAIN_PATH="$BASE_DIR/$TOOLCHAIN_ROOT"
 
-          $cc  = "$binDir\aarch64-w64-mingw32-clang.exe"
-          $cxx = "$binDir\aarch64-w64-mingw32-clang++.exe"
-          $ar  = "$binDir\llvm-ar.exe"
+          cp -r "$ABS_TOOLCHAIN_PATH/aarch64-w64-mingw32" "$ABS_TOOLCHAIN_PATH/aarch64-pc-windows-gnullvm"
 
-          # 5. Export variables to GITHUB_PATH and GITHUB_ENV using ASCII encoding
-          "$binDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding ascii -Append
-          "CC_aarch64_pc_windows_gnullvm=$cc" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
-          "CXX_aarch64_pc_windows_gnullvm=$cxx" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
-          "AR_aarch64_pc_windows_gnullvm=$ar" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
-          "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=$cc" | Out-File -FilePath $env:GITHUB_ENV -Encoding ascii -Append
-        shell: "pwsh"
+          CC_PATH="$ABS_TOOLCHAIN_PATH/bin/aarch64-w64-mingw32-clang.exe"
+          CXX_PATH="$ABS_TOOLCHAIN_PATH/bin/aarch64-w64-mingw32-clang++.exe"
+          AR_PATH="$ABS_TOOLCHAIN_PATH/bin/llvm-ar.exe"
+
+          echo "$ABS_TOOLCHAIN_PATH/bin" >> $GITHUB_PATH
+          echo "CC_aarch64_pc_windows_gnullvm=$CC_PATH" >> $GITHUB_ENV
+          echo "CXX_aarch64_pc_windows_gnullvm=$CXX_PATH" >> $GITHUB_ENV
+          echo "AR_aarch64_pc_windows_gnullvm=$AR_PATH" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=$CC_PATH" >> $GITHUB_ENV
+        shell: "bash"
       - name: "Setup Rust cache"
         uses: "Swatinem/rust-cache@v2"
         with:
