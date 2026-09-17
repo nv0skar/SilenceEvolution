@@ -126,14 +126,6 @@ export default () => {
                         </p>
                     </label>
 
-                    <label class="text-justify">
-                        <span class="text-warning text-xs font-bold">
-                            IMPORTANT WARNING: passwords are sent and stored in
-                            the database in plain text, passwords aren't hashed
-                            whatsoever (due to academic requirements).
-                        </span>
-                    </label>
-
                     <input
                         id="submit"
                         type="submit"
