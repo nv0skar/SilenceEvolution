@@ -189,7 +189,27 @@ impl AppCx {
         }
 
         // Adds internal endpoints.
-        let mut endpoints = APP_INTERNAL_ENDPOINTS.to_owned(); // This can fail, as the endpoints might be invalid.
+        let mut endpoints = APP_INTERNAL_ENDPOINTS.to_owned(); // This can fail, as the endpoints might be invalid
+
+        // Check whether the server is only listening on a loopback address.
+        let _config_guard = self.config().read().await;
+
+        match _config_guard.listening_addr() {
+            Some(listening_addr) if listening_addr.ip().is_loopback() => {
+                info!(
+                    "Currently listening on a loopback address ({}), internal endpoints authentication will be disabled.",
+                    listening_addr
+                );
+
+                endpoints.inner_mut().iter_mut().for_each(|endpoint| {
+                    *endpoint.auth_mut() = AuthBuilder::default()
+                        .level(AuthLevel::InjectWhenAvailable)
+                        .build()
+                        .unwrap();
+                });
+            }
+            _ => (),
+        }
 
         // Converts user-defined endpoints.
         let simple_endpoints = self.simple_endpoints_by_file.read().await;

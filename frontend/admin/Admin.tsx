@@ -7,7 +7,7 @@ import { logout } from "@admin/Session";
 
 import Console from "@admin/components/Console";
 
-import { Show, useContext } from "solid-js";
+import { Match, Show, Switch, useContext } from "solid-js";
 
 import {
     A,
@@ -86,7 +86,7 @@ export default (props: RouteSectionProps) => {
                             </div>
                             <div class="navbar-center">
                                 <A
-                                    class="text-xl md:text-2xl font-stretch-150% btn btn-ghost"
+                                    class="text-xl md:text-2xl font-extrabold font-stretch-150% btn btn-ghost"
                                     href="/"
                                 >
                                     Silence
@@ -112,7 +112,9 @@ export default (props: RouteSectionProps) => {
                                         <div class="inline text-sm">
                                             <span class="text-sm">Hi, </span>
                                             <span class="dark:text-emerald-400 text-sm font-bold">
-                                                {session()!.name}
+                                                {session()
+                                                    ? session()?.name
+                                                    : "Guest"}
                                             </span>
                                         </div>
                                     </button>
@@ -122,16 +124,39 @@ export default (props: RouteSectionProps) => {
                                         style="position-anchor:--user-anchor; inset: auto; top: anchor(bottom); right: anchor(right); margin: 0;"
                                         popover
                                     >
-                                        <li>
-                                            <button onClick={logout}>
-                                                <span class="material-symbols-outlined text-xs">
-                                                    logout
-                                                </span>
-                                                <span class="font-bold">
-                                                    Logout
-                                                </span>
-                                            </button>
-                                        </li>
+                                        <Switch>
+                                            <Match when={session() === null}>
+                                                <li>
+                                                    <button
+                                                        onClick={() => {
+                                                            document.location.replace(
+                                                                "/auth?redirect=/admin",
+                                                            );
+                                                        }}
+                                                    >
+                                                        <span class="material-symbols-outlined text-xs">
+                                                            login
+                                                        </span>
+                                                        <span class="font-bold">
+                                                            Login
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            </Match>
+
+                                            <Match when={true}>
+                                                <li>
+                                                    <button onClick={logout}>
+                                                        <span class="material-symbols-outlined text-xs">
+                                                            logout
+                                                        </span>
+                                                        <span class="font-bold">
+                                                            Logout
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            </Match>
+                                        </Switch>
                                     </ul>
                                 </Show>
                             </div>
@@ -140,7 +165,10 @@ export default (props: RouteSectionProps) => {
                     <div class="absolute top-0 left-0 p-8 px-3 md:pl-26 md:pr-8 pt-24 w-screen h-screen z-0">
                         <Show when={session() !== undefined}>
                             <Show
-                                when={session()!.role === "admin"}
+                                when={
+                                    session() === null ||
+                                    session()?.role === "admin"
+                                }
                                 fallback={
                                     <div class="flex justify-center items-center top-0 text-2xl text-center font-bold leading-relaxed">
                                         <div>
@@ -181,12 +209,29 @@ export default (props: RouteSectionProps) => {
                 </div>
                 <div class="drawer-side is-drawer-close:overflow-visible z-10">
                     <label
+                        id="app-drawer"
                         for="app-drawer"
                         aria-label="close sidebar"
                         class="drawer-overlay"
                     ></label>
-                    <div class="flex h-full flex-col items-start fixed is-drawer-close:w-16 is-drawer-open:w-40 transition duration-300 ease-in-out will-change-[width]">
-                        <ul class="menu h-full bg-base-300/10 md:bg-base-300/25 border-[0.5px] border-base-200 backdrop-blur-sm shadow-xl rounded-lg [&_A]:rounded-lg! m-2 p-2 gap-2 [&_li]:transition [&_li]:duration-200 [&_li]:hover:scale-105">
+                    <div
+                        class="flex h-full flex-col items-start fixed is-drawer-close:w-16 is-drawer-open:w-40 transition duration-300 ease-in-out will-change-[width]"
+                        onMouseOver={(_) => {
+                            (
+                                document.getElementById(
+                                    "app-drawer",
+                                )! as HTMLInputElement
+                            ).checked = true;
+                        }}
+                        onMouseLeave={(_) => {
+                            (
+                                document.getElementById(
+                                    "app-drawer",
+                                )! as HTMLInputElement
+                            ).checked = false;
+                        }}
+                    >
+                        <ul class="menu h-full bg-base-300/10 md:bg-base-300/25 border-[0.5px] border-base-200 backdrop-blur-sm shadow-sm rounded-2xl [&_A]:rounded-lg! m-2 p-2 gap-2 [&_li]:transition [&_li]:duration-200 [&_li]:hover:scale-105">
                             <li>
                                 <A href="/endpoints">
                                     <span class="material-symbols-outlined scale-95">
@@ -226,13 +271,6 @@ export default (props: RouteSectionProps) => {
                                         Config
                                     </span>
                                 </A>
-                            </li>
-                            <li class="absolute bottom-0 my-2">
-                                <label for="app-drawer">
-                                    <span class="material-symbols-outlined scale-95">
-                                        side_navigation
-                                    </span>
-                                </label>
                             </li>
                         </ul>
                     </div>

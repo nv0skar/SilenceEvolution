@@ -3,13 +3,13 @@
 
 pub mod admin;
 pub mod console;
-pub mod mysql_proxy;
 
 use admin::*;
 use console::*;
-use mysql_proxy::*;
 
 use crate::*;
+
+use mysql_proxy::*;
 
 use http_executor::*;
 
@@ -27,7 +27,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .version("internal".into())
                 .method(HttpMethod::Get)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
-                   SQLQueryWrapper::new("SELECT users.user_id, users.name, users.email, roles.role FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.user_id = users.user_id) WHERE (users.user_id = |user_id|)".into()).with_behaviour(SQLBehaviour::Unique).into()
+                   SQLQueryWrapper::new("SELECT users.|user_id_field| as user_id, users.|user_name_field| as name, users.|user_email_field| as email, roles.role FROM |users_table| as users LEFT JOIN |roles_table| as roles ON (roles.user_id = users.|user_id_field|) WHERE (users.|user_id_field| = |user_id|)".into()).with_behaviour(SQLBehaviour::Unique).into()
                 )), Default::default()))
                 .auto_generated(true)
                 .build()
@@ -47,8 +47,8 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
                    SQLQueryWrapper::Many { database: None, queries: CheapVec::from_iter(
                        [
-                           SQLQuery::new("INSERT INTO |roles_target_table| (user_id, role) SELECT users.user_id, 'admin' FROM |users_target_table| as users WHERE (SELECT COUNT(*) FROM |users_target_table|) = 1".into(), false, SQLBehaviour::Permissive),
-                           SQLQuery::new("SELECT roles.role FROM |roles_target_table| as roles WHERE (roles.user_id = |user_id|);".into(), true, SQLBehaviour::Unique)
+                           SQLQuery::new("INSERT INTO |roles_table| (user_id, role) SELECT users.|user_id_field|, 'admin' FROM |users_table| as users WHERE (SELECT COUNT(*) FROM |users_table|) = 1".into(), false, SQLBehaviour::Permissive),
+                           SQLQuery::new("SELECT roles.role FROM |roles_table| as roles WHERE (roles.user_id = |user_id|);".into(), true, SQLBehaviour::Unique)
                        ]
                    ) }.into()
                 )), Default::default()))
@@ -61,6 +61,19 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
             .build()
             .unwrap(),
         EndpointBuilder::default()
+            .id("IsLoopback".into())
+            .execution_target(ExecutionTarget::Http(HttpTargetBuilder::default()
+                .route("loopback".into())
+                .version("internal".into())
+                .method(HttpMethod::Get)
+                .execution_pipeline(ExecutionAtom::new(None, Arc::new(IsLoopback), Default::default()))
+                .auto_generated(true)
+                .build()
+                .unwrap()
+            ))
+            .description("Checks whether the server is listening on a loopback address.".into())
+            .build().unwrap(),
+        EndpointBuilder::default()
             .id("ListUsers".into())
             .databases(CheapVec::from_iter(["internal".into()]))
             .execution_target(ExecutionTarget::Http(HttpTargetBuilder::default()
@@ -68,7 +81,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .version("internal/admin".into())
                 .method(HttpMethod::Get)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
-                   SQLQueryWrapper::new("SELECT users.user_id, users.name, users.email, roles.role, users.password FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.user_id = users.user_id)".into()).into()
+                   SQLQueryWrapper::new("SELECT users.|user_id_field| as user_id, users.|user_name_field| as name, users.|user_email_field| as email, roles.role, users.|user_password_field| as password FROM |users_table| as users LEFT JOIN |roles_table| as roles ON (roles.user_id = users.|user_id_field|)".into()).into()
                 )), Default::default()))
                 .auto_generated(true)
                 .build()
@@ -86,7 +99,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .version("internal/admin".into())
                 .method(HttpMethod::Get)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
-                   SQLQueryWrapper::new("SELECT users.user_id, users.name, users.email, roles.role, users.password FROM |users_target_table| as users LEFT JOIN |roles_target_table| as roles ON (roles.user_id = users.user_id) WHERE (users.user_id = {id})".into()).with_behaviour(SQLBehaviour::Unique).into()
+                   SQLQueryWrapper::new("SELECT users.|user_id_field| as user_id, users.|user_name_field| as name, users.|user_email_field| as email, roles.role, users.|user_password_field| FROM |users_table| as users LEFT JOIN |roles_table| as roles ON (roles.user_id = users.|user_id_field|) WHERE (users.|user_id_field| = {id})".into()).with_behaviour(SQLBehaviour::Unique).into()
                 )), Default::default()))
                 .auto_generated(true)
                 .build()
@@ -104,7 +117,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .version("internal/admin".into())
                 .method(HttpMethod::Post)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(PasswordHasherStep),
-                    CheapVec::from_iter([Arc::new(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(SQLQueryWrapper::new("INSERT INTO |users_target_table| (name, email, password) VALUES ({name}, {email}, {password}); INSERT INTO |roles_target_table| (user_id, role) SELECT users.user_id, {role} FROM |users_target_table| as users WHERE (users.email = {email});".into()).with_include(false).into())), Default::default()))]))) // maybe `RETURNING` does not work with preparated statements?
+                    CheapVec::from_iter([Arc::new(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(SQLQueryWrapper::new("INSERT INTO |users_table| (|user_name_field|, |user_email_field|, |user_password_field|) VALUES ({name}, {email}, {password}); INSERT INTO |roles_table| (user_id, role) SELECT users.|user_name_field|, {role} FROM |users_table| as users WHERE (users.|user_email_field| = {email});".into()).with_include(false).into())), Default::default()))]))) // maybe `RETURNING` does not work with preparated statements?
                 .body_params(CheapVec::from_vec(vec!["name".into(), "email".into(), "role".into(), "password".into()]))
                 .auto_generated(true)
                 .build()
@@ -123,7 +136,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .method(HttpMethod::Put)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(PasswordHasherStep),
                     CheapVec::from_iter([Arc::new(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
-                       SQLQueryWrapper::new("UPDATE |users_target_table| SET name={name}, email={email}, password={password} WHERE (user_id = {id}); REPLACE INTO |roles_target_table| (user_id, role) VALUES ({id}, {role});".into()).with_include(false).into()
+                       SQLQueryWrapper::new("UPDATE |users_table| SET |user_name_field|={name}, |user_email_field|={email}, |user_password_field|={password} WHERE (|user_id_field| = {id}); REPLACE INTO |roles_table| (user_id, role) VALUES ({id}, {role});".into()).with_include(false).into()
                     )), Default::default()))])))
                 .body_params(CheapVec::from_vec(vec!["name".into(), "email".into(), "role".into(), "password".into()]))
                 .auto_generated(true)
@@ -142,7 +155,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .version("internal/admin".into())
                 .method(HttpMethod::Delete)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
-                   SQLQueryWrapper::new("DELETE FROM |users_target_table| WHERE (user_id = {id})".into()).with_include(false).into()
+                   SQLQueryWrapper::new("DELETE FROM |users_table| WHERE (|user_id_field| = {id})".into()).with_include(false).into()
                 )), Default::default()))
                 .auto_generated(true)
                 .build()
@@ -160,7 +173,7 @@ pub static APP_INTERNAL_ENDPOINTS: LazyLock<Endpoints> = LazyLock::new(|| {
                 .version("internal/admin".into())
                 .method(HttpMethod::Delete)
                 .execution_pipeline(ExecutionAtom::new(None, Arc::new(MySQLExecutorProxy::new(
-                   SQLQueryWrapper::new("DELETE FROM |roles_target_table| WHERE (user_id = {id})".into()).with_include(false).into()
+                   SQLQueryWrapper::new("DELETE FROM |roles_table| WHERE (user_id = {id})".into()).with_include(false).into()
                 )), Default::default()))
                 .auto_generated(true)
                 .build()

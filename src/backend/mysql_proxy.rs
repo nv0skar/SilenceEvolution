@@ -47,35 +47,28 @@ impl AnyHttpExecutor for MySQLExecutorProxy {
         let RequestCx { request_params, .. } = &mut request;
 
         // Inject runtime parameters.
-        let _config_guard = AppCx::acquire().config().read().await;
+        let internal_params = AppCx::acquire()
+            .config()
+            .read()
+            .await
+            .internal_params()
+            .to_owned();
 
-        request_params.insert(
-            "users_target_table".to_compact_string(),
-            ParamValue::Internal(
-                _config_guard
-                    .internal_params()
-                    .users_target_table()
-                    .to_owned(),
+        let injections = [
+            ("users_table", internal_params.users().table()),
+            ("user_id_field", internal_params.users().fields().id()),
+            ("user_name_field", internal_params.users().fields().name()),
+            ("user_email_field", internal_params.users().fields().email()),
+            (
+                "user_password_field",
+                internal_params.users().fields().password(),
             ),
-        );
-        request_params.insert(
-            "sessions_target_table".to_compact_string(),
-            ParamValue::Internal(
-                _config_guard
-                    .internal_params()
-                    .sessions_target_table()
-                    .to_owned(),
-            ),
-        );
-        request_params.insert(
-            "roles_target_table".to_compact_string(),
-            ParamValue::Internal(
-                _config_guard
-                    .internal_params()
-                    .roles_target_table()
-                    .to_owned(),
-            ),
-        );
+            ("roles_table", internal_params.roles()),
+        ];
+
+        for (key, val) in injections {
+            request_params.insert(key.into(), ParamValue::Internal(val.to_owned()));
+        }
 
         mysql_execute
             .execute(

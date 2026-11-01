@@ -49,7 +49,45 @@ pub async fn run_migrations(internal_db_name: Option<CompactString>) -> Result<(
         .map(|query| query.to_compact_string())
         .collect::<CheapVec<CompactString>>();
 
-    let mut statements = statements.into_iter();
+    // Inject runtime parameters.
+    // NOTE: If the app's cx hasn't been initialized, run migrations with the default parameters.
+    let internal_params = match APP_CX.get() {
+        Some(app_cx) => app_cx.config().read().await.internal_params().to_owned(),
+        None => config::InternalParams::default(),
+    };
+
+    let _injections = [
+        ("users_table", internal_params.users().table()),
+        ("user_id_field", internal_params.users().fields().id()),
+        ("user_name_field", internal_params.users().fields().name()),
+        ("user_email_field", internal_params.users().fields().email()),
+        (
+            "user_password_field",
+            internal_params.users().fields().password(),
+        ),
+        ("roles_table", internal_params.roles()),
+    ];
+
+    let injections = HashMap::from(_injections);
+
+    // Borrowed from `waveless_sql`.
+    let mut statements = statements.iter().map(|statement| {
+        statement
+            .split('|')
+            .enumerate()
+            .map(|(i, sub)| {
+                if i % 2 != 0 {
+                    if let Some(value) = injections.get(sub.trim()) {
+                        value.to_compact_string()
+                    } else {
+                        unreachable!()
+                    }
+                } else {
+                    sub.into()
+                }
+            })
+            .collect::<CompactString>()
+    });
 
     while let Some(statement) = statements.next() {
         if !statement.is_empty() {

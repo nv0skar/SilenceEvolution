@@ -34,14 +34,37 @@ impl AnyHttpExecutor for PasswordHasherStep {
 
         let response = response.unwrap_or_default();
 
-        if let Some(ParamValue::Client(Some(password))) = request_params.get_mut("password") {
-            let hasher = Argon2::new(Algorithm::default(), Version::default(), Params::default());
+        let runtime_build_guard = RuntimeCx::acquire().build().read().await;
 
-            let hashed_password = hasher
-                .hash_password(password.as_bytes())
-                .map_err(|err| RequestError::Other(eyre!(err).wrap_err("Cannot hash password.")))?;
+        let auth = runtime_build_guard
+            .config()
+            .authentication()
+            .to_owned()
+            .unwrap();
 
-            *password = hashed_password.to_string().into();
+        let Some(backend) = auth.backends().first() else {
+            unreachable!()
+        };
+
+        let Ok(mysql_auth) = backend
+            .to_owned()
+            .into_arc_any()
+            .downcast::<waveless_sql::auth::mysql::MySQLSimpleAuthentication>()
+        else {
+            unreachable!()
+        };
+
+        if let waveless_sql::auth::mysql::PasswordHashBackend::Argon2 = mysql_auth.password_hash() {
+            if let Some(ParamValue::Client(Some(password))) = request_params.get_mut("password") {
+                let hasher =
+                    Argon2::new(Algorithm::default(), Version::default(), Params::default());
+
+                let hashed_password = hasher.hash_password(password.as_bytes()).map_err(|err| {
+                    RequestError::Other(eyre!(err).wrap_err("Cannot hash password."))
+                })?;
+
+                *password = hashed_password.to_string().into();
+            }
         }
 
         Ok((

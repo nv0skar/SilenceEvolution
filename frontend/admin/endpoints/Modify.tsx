@@ -227,7 +227,7 @@ export default (_: RouteSectionProps) => {
 
     return (
         <>
-            <div class="grid gap-2 py-8">
+            <div class="grid gap-2">
                 <div>
                     <h1 class="text-3xl text-center pt-4 font-bold">
                         {endpoint_by_file()
@@ -602,7 +602,7 @@ export default (_: RouteSectionProps) => {
                             <input
                                 id="table-mode"
                                 type="checkbox"
-                                class="toggle rounded-2xl!"
+                                class="toggle rounded-2xl! before:rounded-2xl!"
                                 checked={get_raw_schema_mode()}
                             />
                         </div>

@@ -3,20 +3,14 @@
 
 -- NOTE: Each statement is executed in different queries.
 
-CREATE TABLE IF NOT EXISTS silence_users (
-    user_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(64) NOT NULL UNIQUE,
-    email VARCHAR(32) NOT NULL UNIQUE,
-    password VARCHAR(128) NOT NULL
+CREATE TABLE IF NOT EXISTS |users_table| (
+    |user_id_field| INT AUTO_INCREMENT PRIMARY KEY,
+    |user_name_field| VARCHAR(64) NOT NULL UNIQUE,
+    |user_email_field| VARCHAR(32) NOT NULL UNIQUE,
+    |user_password_field| VARCHAR(128) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS silence_sessions (
-    token_id VARCHAR(128) PRIMARY KEY,
-    user_id INT UNSIGNED NOT NULL REFERENCES silence_users (user_id) ON DELETE CASCADE,
-    created_at DATETIME NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS silence_roles (
-    user_id INT UNSIGNED PRIMARY KEY REFERENCES silence_users (user_id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS |roles_table| (
+    user_id INT PRIMARY KEY REFERENCES |users_table| (|user_id_field|) ON DELETE CASCADE,
     role VARCHAR(16) NOT NULL
 );

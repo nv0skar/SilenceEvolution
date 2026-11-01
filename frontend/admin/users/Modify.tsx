@@ -117,7 +117,7 @@ export default (_: RouteSectionProps) => {
 
     return (
         <>
-            <div class="grid gap-2 py-8">
+            <div class="grid gap-2">
                 <div>
                     <h1 class="text-3xl text-center pt-4 font-bold">
                         {user() !== undefined ? user()!.name : "New user"}
@@ -197,11 +197,11 @@ export default (_: RouteSectionProps) => {
                                 class="input peer validator"
                                 placeholder="Password"
                                 value={user() ? user()!.password : ""}
-                                minLength="8"
+                                minLength="4"
                                 required={user === undefined}
                             />
                             <p class="text-error pt-1 hidden peer-not-placeholder-shown:peer-invalid:peer-focus:block">
-                                Password must have 8 characters or more.
+                                Password must have 4 characters or more.
                             </p>
                         </label>
                     </fieldset>

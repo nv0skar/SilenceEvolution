@@ -55,17 +55,51 @@ impl Default for Config {
 #[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
 #[getset(get = "pub")]
 pub struct InternalParams {
-    users_target_table: CompactString,
-    sessions_target_table: CompactString,
-    roles_target_table: CompactString,
+    users: UsersTable,
+    roles: CompactString,
+}
+
+#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, Debug)]
+#[getset(get = "pub")]
+pub struct UsersTable {
+    table: CompactString,
+    fields: UsersTableFields,
+}
+
+#[derive(Clone, PartialEq, Constructor, Serialize, Deserialize, Getters, Debug)]
+#[getset(get = "pub")]
+pub struct UsersTableFields {
+    id: CompactString,
+    name: CompactString,
+    email: CompactString,
+    password: CompactString,
+}
+
+impl Default for UsersTableFields {
+    fn default() -> Self {
+        Self {
+            id: "user_id".into(),
+            name: "name".into(),
+            email: "email".into(),
+            password: "password".into(),
+        }
+    }
+}
+
+impl Default for UsersTable {
+    fn default() -> Self {
+        Self {
+            table: "silence_users".into(),
+            fields: Default::default(),
+        }
+    }
 }
 
 impl Default for InternalParams {
     fn default() -> Self {
         Self {
-            users_target_table: "silence_users".to_compact_string(),
-            sessions_target_table: "silence_sessions".to_compact_string(),
-            roles_target_table: "silence_roles".to_compact_string(),
+            users: Default::default(),
+            roles: "silence_roles".into(),
         }
     }
 }
@@ -106,9 +140,8 @@ impl Config {
 
         let mut skip_tables = self.skip_discovery_tables().to_owned();
         skip_tables.append(&mut CheapVec::<CompactString>::from_vec(vec![
-            self.internal_params.users_target_table.to_owned(),
-            self.internal_params.sessions_target_table.to_owned(),
-            self.internal_params.roles_target_table.to_owned(),
+            self.internal_params.users.table.to_owned(),
+            self.internal_params.roles.to_owned(),
         ]));
 
         database_configs.push(DatabaseConfig::new(
@@ -141,24 +174,18 @@ impl Config {
                 Some(Authentication::new(
                     CheapVec::from_vec(vec![Arc::new(MySQLSimpleAuthentication::new(
                         Some("internal".into()),
-                        self.internal_params.users_target_table.to_owned(),
-                        "user_id".into(),
-                        "email".into(),
-                        "password".into(),
-                        CheapVec::from_vec(vec!["name".into()]),
+                        self.internal_params.users.table.to_owned(),
+                        self.internal_params.users.fields.id.to_owned(),
+                        self.internal_params.users.fields.email.to_owned(),
+                        self.internal_params.users.fields.password.to_owned(),
+                        PasswordHashBackend::Plain,
+                        CheapVec::from_vec(vec![self.internal_params.users.fields.name.to_owned()]),
                         None,
                     ))]),
-                    Arc::new(MySQLToken::new(
-                        Some("internal".into()),
-                        self.internal_params.sessions_target_table.to_owned(),
-                        "token_id".into(),
-                        "user_id".into(),
-                        "created_at".into(),
-                        3600,
-                    )),
+                    Arc::new(backend::session_manager::InMemoryToken),
                     Some(Arc::new(MySQLRole::new(
                         Some("internal".into()),
-                        self.internal_params.roles_target_table.to_owned(),
+                        self.internal_params.roles.to_owned(),
                         "user_id".into(),
                         "role".into(),
                     ))),

@@ -488,7 +488,7 @@ export default (_: RouteSectionProps) => {
 
     return (
         <>
-            <div class="grid gap-2 py-8">
+            <div class="grid gap-2">
                 <div class="flex flex-col gap-2 overflow-hidden">
                     <h1 class="text-3xl text-center pt-4 font-bold *:align-middle">
                         <span>🧪</span>
@@ -930,7 +930,7 @@ export default (_: RouteSectionProps) => {
                                     <input
                                         id="table-mode"
                                         type="checkbox"
-                                        class="toggle rounded-2xl!"
+                                        class="toggle rounded-2xl! before:rounded-2xl!"
                                         checked={get_raw_schema_mode()}
                                     />
                                 </div>
@@ -960,7 +960,7 @@ export default (_: RouteSectionProps) => {
                     </div>
 
                     <div
-                        class="flex flex-col basis-auto min-w-1/3 min-h-full gap-1.5 bg-base-200/75 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96 backdrop-brightness-125 backdrop-blur-xs shadow-xl rounded-lg! md:mx-6 not-md:my-4 p-4 transition-all transition-discrete ease-in-out duration-500"
+                        class="flex flex-col basis-auto min-w-1/3 min-h-full gap-1.5 bg-base-200/75 border border-base-300 overflow-y-scroll scrollbar-thin max-h-96 backdrop-brightness-125 backdrop-blur-xs shadow-xl rounded-lg! md:mx-6 not-md:my-4 p-4 transition-all transition-discrete ease-in-out duration-300"
                         classList={{
                             "invisible opacity-0 md:min-w-0! not-md:min-h-0! w-0! h-0! mx-0! my-0! p-0! basis-auto! *:opacity-0 overflow-hidden pointer-events-none":
                                 response() === undefined,

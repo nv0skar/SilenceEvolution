@@ -3,7 +3,8 @@
 
 use silence::*;
 
-use silence::internal_endpoints::{console::*, mysql_proxy::*};
+use backend::mysql_proxy::*;
+use silence::internal_endpoints::console::*;
 
 use waveless_commons::{databases::*, endpoint::*, *};
 use waveless_runtime::*;
@@ -177,11 +178,11 @@ async fn try_main() -> Result<ResultContext> {
                     DatabasesManager::load(_app_cx.config().read().await.into_database_config())
                         .await?;
 
-                    // Run database migrations.
-                    run_migrations(internal_db_name).await?;
-
                     // Set App's CX globally.
                     _app_cx.set_global_cx().await?;
+
+                    // Run database migrations.
+                    run_migrations(internal_db_name).await?;
 
                     if display_endpoints_on_start {
                         let runtime_build = RuntimeCx::acquire().build().read().await;

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Oscar Alvarez Gonzalez
 
 pub mod app_cx;
+pub mod backend;
 pub mod config;
 pub mod endpoint_test;
 pub mod internal_endpoints;
@@ -10,6 +11,7 @@ pub mod simple_endpoint;
 pub mod static_service;
 
 pub use app_cx::*;
+pub use backend::*;
 pub use endpoint_test::*;
 pub use internal_endpoints::*;
 pub use new::*;
@@ -37,6 +39,7 @@ use async_trait::*;
 use bytes::Bytes as ConnBytes;
 use chrono::Utc;
 use compact_str::*;
+use dashmap::DashMap;
 use derive_builder::*;
 use derive_more::Constructor;
 use derive_more::Display;
@@ -47,6 +50,7 @@ use http_body_util::{BodyExt, Full, combinators::BoxBody};
 use hyper::Request;
 use hyper::{Response, StatusCode};
 use hyper_tungstenite::*;
+use rand::distr::{Alphanumeric, SampleString};
 use rust_embed_for_web::*;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;

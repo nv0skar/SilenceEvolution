@@ -8,13 +8,29 @@ export interface Session {
     role: string | null;
 }
 
-export const fetcher = async (): Promise<Session> => {
-    const res = await fetch("/api/internal/whoami");
+export const fetcher = async (): Promise<Session | null> => {
+    // Check whether the server is listening on a loopback address.
+    const loopback_req = await fetch("/api/internal/loopback");
 
-    if (!res.ok) console.clear();
+    if (!loopback_req.ok) console.clear();
 
-    if (res.status === 200) {
-        const data = await res.json();
+    const is_loopback = (await loopback_req.json()) as {
+        loopback: boolean;
+    };
+
+    if (is_loopback.loopback) {
+        console.log(
+            "Login as guest as the server is listening on a loopback address.",
+        );
+        return null;
+    }
+
+    const whoami = await fetch("/api/internal/whoami");
+
+    if (!whoami.ok) console.clear();
+
+    if (whoami.status === 200) {
+        const data = await whoami.json();
 
         if ((data as Session).role !== "admin") {
             const res = await fetch("/api/internal/bootstrap");
