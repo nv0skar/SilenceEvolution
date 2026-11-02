@@ -49,6 +49,9 @@ export default (_: RouteSectionProps) => {
     const [tests, { refetch }] = app_cx.get_resource("tests");
     const [endpoints] = app_cx.get_resource("endpoints");
 
+    const [tests_session, { refetch: set_tests_session }] =
+        app_cx.get_resource("tests_session");
+
     const location = useLocation();
 
     const navigate = useNavigate();
@@ -366,6 +369,7 @@ export default (_: RouteSectionProps) => {
         if ("token" in body) {
             localStorage.setItem("test_authorization", body["token"]);
             set_authorization(body["token"]);
+            await set_tests_session({ token: body["token"] });
         }
 
         if (!res.ok) {
@@ -425,8 +429,6 @@ export default (_: RouteSectionProps) => {
             `/api/internal/admin/tests/${test_by_file()!.test.name}`,
             { method: "delete" },
         );
-
-        if (!res.ok) console.clear();
 
         if (res.status === 200) {
             refetch();

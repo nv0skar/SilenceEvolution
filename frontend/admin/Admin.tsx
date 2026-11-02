@@ -33,6 +33,8 @@ export default (props: RouteSectionProps) => {
     const [session] = app_cx.get_resource("session");
     const [config] = app_cx.get_resource("config");
 
+    const [tests_session] = app_cx.get_resource("tests_session");
+
     const location = useLocation();
 
     const navigate = useNavigate();
@@ -104,20 +106,43 @@ export default (props: RouteSectionProps) => {
                                     </a>
                                 </span>
                                 <Show when={session() !== undefined}>
-                                    <button
-                                        class="btn btn-ghost"
-                                        popovertarget="user-dropdown"
-                                        style="anchor-name:--user-anchor"
-                                    >
-                                        <div class="inline text-sm">
-                                            <span class="text-sm">Hi, </span>
-                                            <span class="dark:text-emerald-400 text-sm font-bold">
-                                                {session()
-                                                    ? session()?.name
-                                                    : "Guest"}
-                                            </span>
-                                        </div>
-                                    </button>
+                                    <div>
+                                        <button
+                                            class="btn btn-ghost"
+                                            popovertarget="user-dropdown"
+                                            style="anchor-name:--user-anchor"
+                                        >
+                                            <div class="inline text-sm">
+                                                <p class="text-right">
+                                                    <span class="text-sm">
+                                                        Hi,{" "}
+                                                    </span>
+                                                    <span class="dark:text-emerald-400 text-sm font-bold">
+                                                        {session()
+                                                            ? session()?.name
+                                                            : "Guest"}
+                                                    </span>
+                                                </p>
+
+                                                <Show
+                                                    when={
+                                                        tests_session() !== null
+                                                    }
+                                                >
+                                                    <p class="text-right">
+                                                        Authenticated as{" "}
+                                                        <span class="font-bold text-orange-500">
+                                                            {
+                                                                tests_session()
+                                                                    ?.name
+                                                            }
+                                                        </span>{" "}
+                                                        for tests
+                                                    </p>
+                                                </Show>
+                                            </div>
+                                        </button>
+                                    </div>
                                     <ul
                                         id="user-dropdown"
                                         class="dropdown menu w-52 rounded-box bg-base-100/25 border-base-200 border backdrop-blur-sm shadow-lg transition duration-200"

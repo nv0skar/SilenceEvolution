@@ -18,6 +18,7 @@ import {
     on,
     Match,
     Switch,
+    Show,
     useContext,
 } from "solid-js";
 
@@ -142,6 +143,23 @@ export default (props: RouteSectionProps) => {
                             <div class="flex not-md:flex-col not-md:gap-3 items-center w-full">
                                 <h1 class="text-4xl font-bold">Endpoints</h1>
                                 <div class="flex gap-2 self-end text-right ml-auto items-center *:rounded-lg">
+                                    <button
+                                        class="btn text-sm self-end text-right ml-auto"
+                                        onClick={async (_) => {
+                                            const req = await fetch(
+                                                "/api/internal/admin/endpoints/discover",
+                                            );
+
+                                            if (req.ok) refetch();
+                                            else
+                                                set_alert({
+                                                    value: "Couldn't discover new endpoints.",
+                                                    is_error: true,
+                                                });
+                                        }}
+                                    >
+                                        Reload discovered endpoints
+                                    </button>
                                     <A
                                         class="btn text-sm self-end text-right ml-auto"
                                         href="/endpoints/new"

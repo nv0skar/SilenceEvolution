@@ -101,6 +101,7 @@ pub async fn run_migrations(internal_db_name: Option<CompactString>) -> Result<(
 }
 
 // Creates internal database.
+// NOTE: if no database is set the main database will be used.
 pub async fn create_internal_db(
     db_conn_config: &MySQLDbConnectionConfig,
     internal_db_name: Option<CompactString>,

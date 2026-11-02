@@ -143,8 +143,6 @@ export default (_: RouteSectionProps) => {
         );
 
         if (!res.ok) {
-            console.clear();
-
             const data = (await res.json()) as {
                 error: string;
             };
@@ -167,8 +165,6 @@ export default (_: RouteSectionProps) => {
             `/api/internal/admin/endpoints/${endpoint_by_file()!.endpoint.id}`,
             { method: "delete" },
         );
-
-        if (!res.ok) console.clear();
 
         if (res.status === 200) {
             refetch();

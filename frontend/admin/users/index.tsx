@@ -18,8 +18,6 @@ export type UsersContext = ResourceReturn<Array<User>, any>;
 export const fetcher = async (): Promise<Array<User>> => {
     const res = await fetch("/api/internal/admin/users");
 
-    if (!res.ok) console.clear();
-
     if (res.status === 200) {
         let data = (await res.json()) as Array<User>;
 

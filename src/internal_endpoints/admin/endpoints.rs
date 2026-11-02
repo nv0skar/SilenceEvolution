@@ -8,7 +8,17 @@ use http_executor::{request_cx::*, *};
 
 #[derive(Clone, Serialize, Deserialize, BoxedAny, Getters, Display, Debug)]
 #[display("Endpoint manager.")]
-pub struct EndpointsManager;
+pub struct EndpointsManager(pub(crate) EndpointsManagerOperation);
+
+#[derive(Clone, Serialize, Deserialize, BoxedAny, Display, Debug)]
+pub enum EndpointsManagerOperation {
+    Get,
+    List,
+    New,
+    Set,
+    Delete,
+    Discover,
+}
 
 impl AnyExt for EndpointsManager {
     fn name(&self) -> &str {
@@ -28,7 +38,6 @@ impl AnyHttpExecutor for EndpointsManager {
 
         let RequestCx {
             request: body,
-            method,
             request_params,
             ..
         } = &mut request;
@@ -37,8 +46,10 @@ impl AnyHttpExecutor for EndpointsManager {
 
         *response.body_mut() = None; // Empty the response body set by previous execution steps.
 
-        match method {
-            HttpMethod::Get => {
+        let EndpointsManager(operation) = self;
+
+        match operation {
+            EndpointsManagerOperation::Get => {
                 let simple_endpoint_id = request_params.get("endpoint_id");
 
                 match simple_endpoint_id {
@@ -70,30 +81,27 @@ impl AnyHttpExecutor for EndpointsManager {
                             PipelineAction::Continue(None),
                         ))
                     }
-                    None => {
-                        let simple_endpoints_by_file = AppCx::acquire().get_endpoints().await?;
-
-                        let res =
-                            serde_json::to_value(simple_endpoints_by_file).map_err(|err| {
-                                RequestError::Other(
-                                    eyre!(err).wrap_err("Cannot serialize endpoints."),
-                                )
-                            })?;
-
-                        *response.body_mut() = Some(BodyValue::Json(res));
-
-                        Ok((
-                            PipelineCx {
-                                request,
-                                response: Some(response),
-                            },
-                            PipelineAction::Continue(None),
-                        ))
-                    }
                     _ => unreachable!(),
                 }
             }
-            HttpMethod::Post => {
+            EndpointsManagerOperation::List => {
+                let simple_endpoints_by_file = AppCx::acquire().get_endpoints().await?;
+
+                let res = serde_json::to_value(simple_endpoints_by_file).map_err(|err| {
+                    RequestError::Other(eyre!(err).wrap_err("Cannot serialize endpoints."))
+                })?;
+
+                *response.body_mut() = Some(BodyValue::Json(res));
+
+                Ok((
+                    PipelineCx {
+                        request,
+                        response: Some(response),
+                    },
+                    PipelineAction::Continue(None),
+                ))
+            }
+            EndpointsManagerOperation::New => {
                 let req_body = Bytes::from_vec(
                     body.collect()
                         .await
@@ -147,7 +155,7 @@ impl AnyHttpExecutor for EndpointsManager {
                     PipelineAction::Continue(None),
                 ))
             }
-            HttpMethod::Put => {
+            EndpointsManagerOperation::Set => {
                 let req_body = &body
                     .collect()
                     .await
@@ -196,7 +204,7 @@ impl AnyHttpExecutor for EndpointsManager {
                     PipelineAction::Continue(None),
                 ))
             }
-            HttpMethod::Delete => {
+            EndpointsManagerOperation::Delete => {
                 let simple_endpoint_id = match request_params.get("id") {
                     Some(ParamValue::Client(Some(id))) => id.to_owned(),
                     _ => Err(RequestError::Expected(
@@ -224,7 +232,34 @@ impl AnyHttpExecutor for EndpointsManager {
                     PipelineAction::Continue(None),
                 ))
             }
-            HttpMethod::Unknown => unreachable!(),
+            EndpointsManagerOperation::Discover => {
+                let endpoints =
+                    AppCx::acquire()
+                        .build_runtime_endpoints()
+                        .await
+                        .map_err(|err| {
+                            RequestError::Other(err.wrap_err(
+                                "There was an issue while discovering database's endpoints.",
+                            ))
+                        })?;
+
+                // Add the endpoint to the runtime context.
+                {
+                    let mut executor_build_guard = RuntimeCx::acquire().build().write().await;
+                    *executor_build_guard.endpoints_mut() = endpoints;
+                }
+
+                // Rebuild the router.
+                RuntimeCx::acquire().build_router().await?;
+
+                Ok((
+                    PipelineCx {
+                        request,
+                        response: Some(response),
+                    },
+                    PipelineAction::Continue(None),
+                ))
+            }
         }
     }
 }

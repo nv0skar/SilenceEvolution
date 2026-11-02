@@ -23,6 +23,7 @@ export const RESOURCES_FETCHERS: Record<
     session: session.fetcher,
     endpoints: endpoints.fetcher,
     tests: tests.fetcher,
+    tests_session: tests.tests_session_fetcher,
     users: users.fetcher,
     config: config.fetcher,
 };
@@ -31,6 +32,7 @@ export interface ResourceTypes {
     session: session.Session;
     endpoints: Array<endpoints.EndpointByFile>;
     tests: Array<tests.TestByFile>;
+    tests_session: session.Session;
     users: Array<users.User>;
     config: config.ConfigStruct;
 }

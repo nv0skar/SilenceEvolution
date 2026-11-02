@@ -38,8 +38,6 @@ export type EndpointsContext = ResourceReturn<Array<EndpointByFile>, any>;
 export const fetcher = async (): Promise<Array<EndpointByFile>> => {
     const res = await fetch("/api/internal/endpoints");
 
-    if (!res.ok) console.clear();
-
     if (res.status === 200) {
         const data = (await res.json()) as Array<
             Array<string | Array<Endpoint>>

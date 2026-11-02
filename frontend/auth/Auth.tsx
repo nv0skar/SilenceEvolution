@@ -24,7 +24,7 @@ export default (props: RouteSectionProps) => {
     // Check whether a session already exists.
     const [session_exists] = createResource(async () => {
         const res = await fetch("/api/internal/whoami");
-        if (!res.ok) console.clear();
+
         return res.status === 200;
     });
 

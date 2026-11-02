@@ -35,6 +35,8 @@ use tracing_subscriber::{filter::LevelFilter, *};
 static GLOBAL: MiMalloc = MiMalloc;
 
 nest! {
+    /// NOTE: we have disabled default arguments for the `new` subcommand until the setup flow is implemented,
+    /// this will force students to set parameters explicitly.
     #[derive(Parser)]
     #[command(
         name = "silence",
@@ -79,19 +81,19 @@ nest! {
                     db_host: Option<SocketAddr>,
 
                     #[arg(short = 'n', long = "db_name", help = "Database's name.")]
-                    db_name: Option<CompactString>,
+                    db_name: CompactString, // Option<CompactString>
 
-                    #[arg(long = "internal_db_name", help = "Internal database's name.")]
+                    #[arg(long = "internal_db_name", help = "Internal database's name. NOTE: by default, Silence will use the project's database as internal, set this if you want to use a separate database for managing silence users. Also, the provided `user` and `password` will be used to run the internal database migrations.")]
                     internal_db_name: Option<CompactString>,
 
                     #[arg(short = 'u', long = "db_user", help = "Database's user.")]
-                    db_user: Option<CompactString>,
+                    db_user: CompactString, // Option<CompactString>
 
                     #[arg(short = 'p', long = "db_password", help = "Database's password.")]
-                    db_password: Option<CompactString>,
+                    db_password: CompactString, // Option<CompactString>
 
                     #[arg(long = "skip_internal_db", default_value_t = false)]
-                    skip_internal_db: bool,
+                    skip_internal_migrations: bool,
 
                     #[arg(long = "prefer_web_directory", default_value_t = true)]
                     prefer_web_directory: bool,
@@ -405,34 +407,37 @@ async fn try_main() -> Result<ResultContext> {
             internal_db_name,
             db_user,
             db_password,
-            skip_internal_db,
+            skip_internal_migrations: skip_internal_db,
             prefer_web_directory,
         }) => {
             // Create internal database if necessary.
             if !skip_internal_db {
-                if let (Some(db_name), Some(db_user), Some(db_password)) = (
-                    db_name.to_owned(),
+                // TODO: implement the setup flow and uncomment this.
+                // if let (Some(db_name), Some(db_user), Some(db_password)) = (
+                //     db_name.to_owned(),
+                //     db_user.to_owned(),
+                //     db_password.to_owned(),
+                // ) {
+
+                let db_conn_config = MySQLDbConnectionConfig::new(
+                    db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
                     db_user.to_owned(),
                     db_password.to_owned(),
-                ) {
-                    let db_conn_config = MySQLDbConnectionConfig::new(
-                        db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
-                        db_user,
-                        db_password,
-                        db_name,
-                    );
+                    db_name.to_owned(),
+                );
 
-                    create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
-                }
+                create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
+
+                // }
             }
 
             new_project(
                 name,
                 db_host,
-                db_name,
+                Some(db_name),
                 internal_db_name,
-                db_user,
-                db_password,
+                Some(db_user),
+                Some(db_password),
                 skip_internal_db,
                 prefer_web_directory,
             )

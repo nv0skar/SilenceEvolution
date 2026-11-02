@@ -44,8 +44,6 @@ export interface DatabaseConn {
 export const fetcher = async (): Promise<ConfigStruct> => {
     const res = await fetch("/api/internal/admin/config");
 
-    if (!res.ok) console.clear();
-
     if (res.status === 200) {
         const data = await res.json();
         return data as ConfigStruct;
@@ -63,8 +61,6 @@ export default (props: RouteSectionProps) => {
     const [config, { refetch }] = createResource(
         async (): Promise<ConfigStruct> => {
             const res = await fetch("/api/internal/admin/config");
-
-            if (!res.ok) console.clear();
 
             if (res.status === 200) {
                 const data = (await res.json()) as ConfigStruct;
@@ -159,8 +155,6 @@ export default (props: RouteSectionProps) => {
         });
 
         if (!res.ok) {
-            console.clear();
-
             const data = (await res.json()) as {
                 error: string;
             };

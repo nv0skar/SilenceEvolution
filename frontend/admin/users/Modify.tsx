@@ -20,6 +20,9 @@ export default (_: RouteSectionProps) => {
 
     const [users, { refetch }] = app_cx.get_resource("users");
 
+    const [tests_session, { refetch: set_tests_session }] =
+        app_cx.get_resource("tests_session");
+
     if (!users) return <span></span>; // This component may be rendered twice, one of the renders will happen with users' context undefined.
 
     const navigate = useNavigate();
@@ -65,8 +68,6 @@ export default (_: RouteSectionProps) => {
         });
 
         if (!res.ok) {
-            // console.clear();
-
             const data = (await res.json()) as {
                 error: string;
             };
@@ -91,8 +92,6 @@ export default (_: RouteSectionProps) => {
                 method: "delete",
             },
         );
-
-        if (!res.ok) console.clear();
 
         if (res.status === 200) {
             refetch();
@@ -122,6 +121,17 @@ export default (_: RouteSectionProps) => {
                     <h1 class="text-3xl text-center pt-4 font-bold">
                         {user() !== undefined ? user()!.name : "New user"}
                     </h1>
+                    <Show
+                        when={
+                            user() !== undefined &&
+                            tests_session() !== null &&
+                            tests_session()?.user_id == user()?.user_id
+                        }
+                    >
+                        <h2 class="text text-center">
+                            Currently logged-in as this user.
+                        </h2>
+                    </Show>
                 </div>
 
                 <Show when={error() != undefined}>
@@ -230,6 +240,28 @@ export default (_: RouteSectionProps) => {
                     >
                         {user() ? "Update" : "Create user"}
                     </button>
+                    <div class="flex gap-2 ml-auto">
+                        <button
+                            class="btn hover:btn-info"
+                            classList={{
+                                hidden: user() === undefined,
+                                "btn-disabled":
+                                    tests_session()?.user_id ===
+                                    user()?.user_id,
+                            }}
+                            onClick={async () =>
+                                await set_tests_session({
+                                    user_id: user()?.user_id,
+                                })
+                            }
+                        >
+                            Authenticate as{" "}
+                            <span class="text-orange-500 font-black">
+                                {user()?.name}
+                            </span>{" "}
+                            for tests
+                        </button>
+                    </div>
                 </div>
             </div>
         </>

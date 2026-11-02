@@ -155,7 +155,9 @@ impl AppCx {
     }
 
     /// Converts the Silence's app's endpoints (`SimpleEndpoint`) into Waveless' endpoints and discovers the database's schema to automatically generate endpoints.
-    async fn build_runtime_endpoints(&self) -> Result<waveless_commons::endpoint::Endpoints> {
+    pub(crate) async fn build_runtime_endpoints(
+        &self,
+    ) -> Result<waveless_commons::endpoint::Endpoints> {
         // In the future, endpoint discovery will be `CompilerCx` independent.
         // In the meanwhile we do this as a workaround.
         let dummy_build = self.config.read().await.to_owned().into_build(
