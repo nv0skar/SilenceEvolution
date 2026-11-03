@@ -3,6 +3,8 @@
 
 use crate::*;
 
+use config::*;
+
 use databases::*;
 
 use waveless_sql::databases::mysql::*;
@@ -131,6 +133,7 @@ pub async fn new_project(
     db_host: Option<SocketAddr>,
     db_name: Option<CompactString>,
     internal_db_name: Option<CompactString>,
+    internal_params: InternalParams,
     db_user: Option<CompactString>,
     db_password: Option<CompactString>,
     skip_internal_db: bool,
@@ -138,6 +141,8 @@ pub async fn new_project(
 ) -> Result<CompactString> {
     // Create a new Silence project.
     let mut config = config::Config::default();
+
+    *config.internal_params_mut() = internal_params;
 
     // Execute database's migrations if database data is given.
     if let (Some(db_name), Some(db_user), Some(db_password)) = (db_name, db_user, db_password) {

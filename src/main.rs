@@ -4,6 +4,7 @@
 use silence::*;
 
 use backend::mysql_proxy::*;
+use config::*;
 use silence::internal_endpoints::console::*;
 
 use waveless_commons::{databases::*, endpoint::*, *};
@@ -92,7 +93,25 @@ nest! {
                     #[arg(short = 'p', long = "db_password", help = "Database's password.")]
                     db_password: CompactString, // Option<CompactString>
 
-                    #[arg(long = "skip_internal_db", default_value_t = false)]
+                    #[arg(long = "users_table", help = "Set the Silence's users table.")]
+                    users_table: CompactString, // Option<CompactString>
+
+                    #[arg(long = "roles_table", help = "Set the Silence's roles table.")]
+                    roles_table: CompactString, // Option<CompactString>
+
+                    #[arg(long = "users_id_field", help = "Set the `user_id` field.")]
+                    users_id_field: CompactString, // Option<CompactString>
+
+                    #[arg(long = "users_name_field", help = "Set the `name` field.")]
+                    users_name_field: CompactString, // Option<CompactString>
+
+                    #[arg(long = "users_email_field", help = "Set the `email` field.")]
+                    users_email_field: CompactString, // Option<CompactString>
+
+                    #[arg(long = "users_password_field", help = "Set the `password` field.")]
+                    users_password_field: CompactString, // Option<CompactString>
+
+                    #[arg(long = "skip_internal_migrations", default_value_t = false)]
                     skip_internal_migrations: bool,
 
                     #[arg(long = "prefer_web_directory", default_value_t = true)]
@@ -407,6 +426,12 @@ async fn try_main() -> Result<ResultContext> {
             internal_db_name,
             db_user,
             db_password,
+            users_table,
+            roles_table,
+            users_id_field,
+            users_name_field,
+            users_email_field,
+            users_password_field,
             skip_internal_migrations: skip_internal_db,
             prefer_web_directory,
         }) => {
@@ -436,6 +461,18 @@ async fn try_main() -> Result<ResultContext> {
                 db_host,
                 Some(db_name),
                 internal_db_name,
+                InternalParams::new(
+                    UsersTable::new(
+                        users_table,
+                        UsersTableFields::new(
+                            users_id_field,
+                            users_name_field,
+                            users_email_field,
+                            users_password_field,
+                        ),
+                    ),
+                    roles_table,
+                ),
                 Some(db_user),
                 Some(db_password),
                 skip_internal_db,
