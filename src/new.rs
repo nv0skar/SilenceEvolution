@@ -22,7 +22,7 @@ pub struct NewMigrations;
 pub async fn run_migrations(internal_db_name: Option<CompactString>) -> Result<()> {
     let db_conns = DATABASES_CONNS.get().unwrap().to_owned();
 
-    let (_, _main_db_any_conn) = db_conns.primary_db()?;
+    let (_, _main_db_any_conn) = db_conns.primary_db().await?;
 
     let db_conn = match internal_db_name {
         Some(_) => db_conns
@@ -54,7 +54,13 @@ pub async fn run_migrations(internal_db_name: Option<CompactString>) -> Result<(
     // Inject runtime parameters.
     // NOTE: If the app's cx hasn't been initialized, run migrations with the default parameters.
     let internal_params = match APP_CX.get() {
-        Some(app_cx) => app_cx.config().read().await.internal_params().to_owned(),
+        Some(app_cx) => app_cx
+            .config()
+            .read()
+            .await
+            .internal_params()
+            .to_owned()
+            .unwrap_or(config::InternalParams::default()),
         None => config::InternalParams::default(),
     };
 
@@ -133,7 +139,7 @@ pub async fn new_project(
     db_host: Option<SocketAddr>,
     db_name: Option<CompactString>,
     internal_db_name: Option<CompactString>,
-    internal_params: InternalParams,
+    internal_params: Option<InternalParams>,
     db_user: Option<CompactString>,
     db_password: Option<CompactString>,
     skip_internal_db: bool,
@@ -146,7 +152,7 @@ pub async fn new_project(
 
     // Execute database's migrations if database data is given.
     if let (Some(db_name), Some(db_user), Some(db_password)) = (db_name, db_user, db_password) {
-        *config.databases_conn_mut() = config::DatabasesConnectionConfig::new(
+        *config.databases_conn_mut() = Some(config::DatabasesConnectionConfig::new(
             MySQLDbConnectionConfig::new(
                 db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
                 db_user.to_owned(),
@@ -162,10 +168,11 @@ pub async fn new_project(
                 )),
                 _ => None,
             },
-        );
+        ));
 
-        DatabasesManager::load(config.into_database_config()).await?;
-
+        DatabasesManager::acquire()
+            .load_all(config.into_database_config())
+            .await?;
         run_migrations(internal_db_name).await?;
     }
 

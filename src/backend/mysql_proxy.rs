@@ -3,6 +3,8 @@
 
 use crate::*;
 
+use config::*;
+
 use databases::*;
 
 use http_executor::{request_cx::*, *};
@@ -52,7 +54,8 @@ impl AnyHttpExecutor for MySQLExecutorProxy {
             .read()
             .await
             .internal_params()
-            .to_owned();
+            .to_owned()
+            .unwrap_or(InternalParams::default());
 
         let injections = [
             ("users_table", internal_params.users().table()),

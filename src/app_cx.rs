@@ -23,10 +23,8 @@
 use crate::*;
 
 use config::*;
-
-use project::EndpointGeneratorConfig;
-
-use waveless_compiler::{COMPILER_CX, CompilerCx, generator::*};
+use databases::*;
+use endpoint::generator::*;
 
 use waveless_sql::generator::mysql::*;
 
@@ -158,38 +156,6 @@ impl AppCx {
     pub(crate) async fn build_runtime_endpoints(
         &self,
     ) -> Result<waveless_commons::endpoint::Endpoints> {
-        // In the future, endpoint discovery will be `CompilerCx` independent.
-        // In the meanwhile we do this as a workaround.
-        let dummy_build = self.config.read().await.to_owned().into_build(
-            waveless_commons::endpoint::Endpoints::new_unchecked(CheapVec::new()),
-        );
-
-        // Initialize CompilerCx if needed.
-        if !COMPILER_CX.initialized() {
-            CompilerCx::new(
-                waveless_commons::project::Project::new(
-                    dummy_build.config().to_owned(),
-                    waveless_commons::project::Compiler::new(
-                        CompactString::const_new(""),
-                        CheapVec::from_iter([EndpointGeneratorConfig::new(
-                            Arc::new(MySQLSchemaDiscovery::new(
-                                "main".into(),
-                                self.config()
-                                    .read()
-                                    .await
-                                    .skip_discovery_tables()
-                                    .to_owned(),
-                            )),
-                            false,
-                        )]),
-                    ),
-                    dummy_build.executor().to_owned(),
-                ),
-                PathBuf::new(),
-            )
-            .set_cx();
-        }
-
         // Adds internal endpoints.
         let mut endpoints = APP_INTERNAL_ENDPOINTS.to_owned(); // This can fail, as the endpoints might be invalid
 
@@ -227,32 +193,30 @@ impl AppCx {
             )?, // This could fail, as the user's endpoints might be invalid.
         )?;
 
-        // Discover MySQL schema endpoints.
+        // Generate MySQL schema endpoints.
         let config_guard = self.config.read().await;
 
-        let skip_endpoint_ids = config_guard.skip_endpoints_ids();
+        if let Some(_) = config_guard.databases_conn() {
+            let skip_endpoint_ids = config_guard.skip_endpoints_ids();
 
-        endpoints.merge(
-            GeneratedEndpoints::generate()
-                .await?
-                .get()
-                .iter()
-                .cloned()
-                .map(|(_, (discovered_endpoints, _))| {
-                    Endpoints::new_unchecked(
-                        discovered_endpoints
-                            .inner()
-                            .iter()
-                            .cloned()
-                            .filter(|discovered_endpoint| {
-                                !skip_endpoint_ids.contains(discovered_endpoint.id())
-                            })
-                            .collect::<CheapVec<Endpoint>>(),
-                    )
-                }) // won't add endpoints whose id is in `Config::skip_endpoints_ids`.
-                .next()
-                .unwrap_or(Endpoints::default()),
-        )?;
+            let mysql_discovery = MySQLSchemaDiscovery::new(
+                "main".into(),
+                config_guard.skip_discovery_tables().to_owned(),
+            );
+
+            let (generated_endpoints, _) = mysql_discovery
+                .generate(DatabasesManager::acquire().into())
+                .await?;
+
+            endpoints.merge(Endpoints::new(
+                generated_endpoints
+                    .inner()
+                    .iter()
+                    .cloned()
+                    .filter(|endpoint: &Endpoint| !skip_endpoint_ids.contains(endpoint.id())) // won't add endpoints whose id is in `Config::skip_endpoints_ids`.
+                    .collect::<CheapVec<Endpoint>>(),
+            )?)?;
+        }
 
         Ok(endpoints)
     }

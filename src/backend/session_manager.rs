@@ -3,6 +3,8 @@
 
 use crate::*;
 
+use config::*;
+
 use auth::*;
 use databases::*;
 
@@ -53,7 +55,8 @@ impl AnySessionMethod for InMemoryToken {
             .read()
             .await
             .internal_params()
-            .to_owned();
+            .to_owned()
+            .unwrap_or(InternalParams::default());
 
         // Check whether the user exists.
         let Ok(db_conn) = db_conns

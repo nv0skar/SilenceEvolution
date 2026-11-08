@@ -36,8 +36,6 @@ use tracing_subscriber::{filter::LevelFilter, *};
 static GLOBAL: MiMalloc = MiMalloc;
 
 nest! {
-    /// NOTE: we have disabled default arguments for the `new` subcommand until the setup flow is implemented,
-    /// this will force students to set parameters explicitly.
     #[derive(Parser)]
     #[command(
         name = "silence",
@@ -75,41 +73,26 @@ nest! {
                 /// Creates a new Silence project.
                 #[command(about = "Creates a new Silence project.")]
                 New {
-                    #[arg(help = "Project's name")]
+                    #[arg(id = "project_name", help = "Project's name")]
                     name: CompactString,
 
                     #[arg(long = "db_host", help = "Database's address.")]
                     db_host: Option<SocketAddr>,
 
                     #[arg(short = 'n', long = "db_name", help = "Database's name.")]
-                    db_name: CompactString, // Option<CompactString>
+                    db_name: Option<CompactString>,
 
                     #[arg(long = "internal_db_name", help = "Internal database's name. NOTE: by default, Silence will use the project's database as internal, set this if you want to use a separate database for managing silence users. Also, the provided `user` and `password` will be used to run the internal database migrations.")]
                     internal_db_name: Option<CompactString>,
 
                     #[arg(short = 'u', long = "db_user", help = "Database's user.")]
-                    db_user: CompactString, // Option<CompactString>
+                    db_user: Option<CompactString>,
 
                     #[arg(short = 'p', long = "db_password", help = "Database's password.")]
-                    db_password: CompactString, // Option<CompactString>
+                    db_password: Option<CompactString>,
 
-                    #[arg(long = "users_table", help = "Set the Silence's users table.")]
-                    users_table: CompactString, // Option<CompactString>
-
-                    #[arg(long = "roles_table", help = "Set the Silence's roles table.")]
-                    roles_table: CompactString, // Option<CompactString>
-
-                    #[arg(long = "users_id_field", help = "Set the `user_id` field.")]
-                    users_id_field: CompactString, // Option<CompactString>
-
-                    #[arg(long = "users_name_field", help = "Set the `name` field.")]
-                    users_name_field: CompactString, // Option<CompactString>
-
-                    #[arg(long = "users_email_field", help = "Set the `email` field.")]
-                    users_email_field: CompactString, // Option<CompactString>
-
-                    #[arg(long = "users_password_field", help = "Set the `password` field.")]
-                    users_password_field: CompactString, // Option<CompactString>
+                    #[command(flatten)]
+                    internal_params: Option<InternalParams>,
 
                     #[arg(long = "skip_internal_migrations", default_value_t = false)]
                     skip_internal_migrations: bool,
@@ -159,51 +142,53 @@ async fn try_main() -> Result<ResultContext> {
             match app_cx {
                 Some(_app_cx) => {
                     // Create internal database if necessary.
-                    let internal_db_name =
-                        match _app_cx.config().read().await.databases_conn().internal() {
-                            Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
-                            None => None,
-                        };
+                    if let Some(db_conns) = _app_cx.config().read().await.databases_conn() {
+                        let internal_db_name = db_conns
+                            .internal()
+                            .to_owned()
+                            .map(|db_conn| db_conn.db().to_owned());
 
-                    {
-                        let db_conn_config =
-                            match _app_cx.config().read().await.databases_conn().internal() {
-                                Some(_db_conn_config) => MySQLDbConnectionConfig::new(
+                        let db_conn_config = match db_conns.internal() {
+                            Some(_db_conn_config) => MySQLDbConnectionConfig::new(
+                                _db_conn_config.host().to_owned(),
+                                _db_conn_config.username().to_owned(),
+                                _db_conn_config.password().to_owned(),
+                                "".into(),
+                            ),
+                            None => {
+                                let _db_conn_config = db_conns.main().to_owned();
+
+                                MySQLDbConnectionConfig::new(
                                     _db_conn_config.host().to_owned(),
                                     _db_conn_config.username().to_owned(),
                                     _db_conn_config.password().to_owned(),
                                     "".into(),
-                                ),
-                                None => {
-                                    let _db_conn_config = _app_cx
-                                        .config()
-                                        .read()
-                                        .await
-                                        .databases_conn()
-                                        .main()
-                                        .to_owned();
-
-                                    MySQLDbConnectionConfig::new(
-                                        _db_conn_config.host().to_owned(),
-                                        _db_conn_config.username().to_owned(),
-                                        _db_conn_config.password().to_owned(),
-                                        "".into(),
-                                    )
-                                }
-                            };
+                                )
+                            }
+                        };
 
                         create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
                     }
 
                     // Load the Silence's app's database into the databases manager (`waveless_commons::databases::DatabasesConnections`).
-                    DatabasesManager::load(_app_cx.config().read().await.into_database_config())
+                    DatabasesManager::acquire()
+                        .load_all(_app_cx.config().read().await.into_database_config())
                         .await?;
 
                     // Set App's CX globally.
                     _app_cx.set_global_cx().await?;
 
                     // Run database migrations.
-                    run_migrations(internal_db_name).await?;
+                    // NOTE: `silence::new::run_migrations` requires the global app's cx to be initialized.
+                    if let Some(db_conns) = AppCx::acquire().config().read().await.databases_conn()
+                    {
+                        let internal_db_name = db_conns
+                            .internal()
+                            .to_owned()
+                            .map(|db_conn| db_conn.db().to_owned());
+
+                        run_migrations(internal_db_name).await?;
+                    }
 
                     if display_endpoints_on_start {
                         let runtime_build = RuntimeCx::acquire().build().read().await;
@@ -426,55 +411,36 @@ async fn try_main() -> Result<ResultContext> {
             internal_db_name,
             db_user,
             db_password,
-            users_table,
-            roles_table,
-            users_id_field,
-            users_name_field,
-            users_email_field,
-            users_password_field,
+            internal_params,
             skip_internal_migrations: skip_internal_db,
             prefer_web_directory,
         }) => {
             // Create internal database if necessary.
             if !skip_internal_db {
-                // TODO: implement the setup flow and uncomment this.
-                // if let (Some(db_name), Some(db_user), Some(db_password)) = (
-                //     db_name.to_owned(),
-                //     db_user.to_owned(),
-                //     db_password.to_owned(),
-                // ) {
-
-                let db_conn_config = MySQLDbConnectionConfig::new(
-                    db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+                if let (Some(db_name), Some(db_user), Some(db_password)) = (
+                    db_name.to_owned(),
                     db_user.to_owned(),
                     db_password.to_owned(),
-                    db_name.to_owned(),
-                );
+                ) {
+                    let db_conn_config = MySQLDbConnectionConfig::new(
+                        db_host.unwrap_or(SocketAddr::new("127.0.0.1".parse().unwrap(), 3306)),
+                        db_user.to_owned(),
+                        db_password.to_owned(),
+                        db_name.to_owned(),
+                    );
 
-                create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
-
-                // }
+                    create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
+                }
             }
 
             new_project(
                 name,
                 db_host,
-                Some(db_name),
+                db_name,
                 internal_db_name,
-                InternalParams::new(
-                    UsersTable::new(
-                        users_table,
-                        UsersTableFields::new(
-                            users_id_field,
-                            users_name_field,
-                            users_email_field,
-                            users_password_field,
-                        ),
-                    ),
-                    roles_table,
-                ),
-                Some(db_user),
-                Some(db_password),
+                internal_params,
+                db_user,
+                db_password,
                 skip_internal_db,
                 prefer_web_directory,
             )
@@ -490,35 +456,38 @@ async fn try_main() -> Result<ResultContext> {
                 .suggestion("Create a new Silence project with the `new` subcommand."));
             };
 
-            // Create internal database if necessary.
-            let internal_db_name = match app_cx.config().read().await.databases_conn().internal() {
-                Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
-                None => None,
-            };
+            if let Some(db_conns) = app_cx.config().read().await.databases_conn() {
+                let internal_db_name = db_conns
+                    .internal()
+                    .to_owned()
+                    .map(|db_conn| db_conn.db().to_owned());
 
-            if let Some(_db_conn_config) = app_cx.config().read().await.databases_conn().internal()
-            {
-                let db_conn_config = MySQLDbConnectionConfig::new(
-                    _db_conn_config.host().to_owned(),
-                    _db_conn_config.username().to_owned(),
-                    _db_conn_config.password().to_owned(),
-                    "".into(),
-                );
+                // Create internal database if necessary.
+                if let Some(_db_conn_config) = db_conns.internal() {
+                    let db_conn_config = MySQLDbConnectionConfig::new(
+                        _db_conn_config.host().to_owned(),
+                        _db_conn_config.username().to_owned(),
+                        _db_conn_config.password().to_owned(),
+                        "".into(),
+                    );
 
-                create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
-            }
+                    create_internal_db(&db_conn_config, internal_db_name.to_owned()).await?;
+                }
 
-            DatabasesManager::load(app_cx.config().read().await.into_database_config()).await?;
+                DatabasesManager::acquire()
+                    .load_all(app_cx.config().read().await.into_database_config())
+                    .await?;
 
-            run_migrations(
-                match app_cx.config().read().await.databases_conn().internal() {
+                run_migrations(match db_conns.internal() {
                     Some(db_conns_config) => Some(db_conns_config.db().to_owned()),
                     None => None,
-                },
-            )
-            .await?;
+                })
+                .await?;
 
-            Ok("Migrations ran successfully.".into())
+                Ok("Migrations ran successfully.".into())
+            } else {
+                Err(eyre!(""))
+            }
         }
 
         _ => unreachable!(),
