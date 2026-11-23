@@ -17,7 +17,7 @@ pub enum EndpointsManagerOperation {
     New,
     Set,
     Delete,
-    Discover,
+    Generate,
 }
 
 impl AnyExt for EndpointsManager {
@@ -57,29 +57,17 @@ impl AnyHttpExecutor for EndpointsManager {
                         let (target_path, simple_endpoint) = AppCx::acquire()
                             .get_endpoint(Some(id.to_owned()), None, false)
                             .await?
-                            .ok_or(RequestError::Expected(
+                            .ok_or(RequestError::new(
                                 StatusCode::BAD_REQUEST,
                                 format!("Cannot find endpoint with id `{}`", id)
                                     .to_compact_string(),
                             ))?;
 
-                        let serialized_endpoint = serde_json::to_value((
-                            target_path,
-                            simple_endpoint,
-                        ))
-                        .map_err(|err| {
-                            RequestError::Other(eyre!(err).wrap_err("Cannot serialize endpoint."))
-                        })?;
+                        let serialized_endpoint =
+                            serde_json::to_value((target_path, simple_endpoint))
+                                .wrap_err("Cannot serialize endpoint.")?;
 
                         *response.body_mut() = Some(BodyValue::Json(serialized_endpoint));
-
-                        Ok((
-                            PipelineCx {
-                                request,
-                                response: Some(response),
-                            },
-                            PipelineAction::Continue(None),
-                        ))
                     }
                     _ => unreachable!(),
                 }
@@ -87,26 +75,17 @@ impl AnyHttpExecutor for EndpointsManager {
             EndpointsManagerOperation::List => {
                 let simple_endpoints_by_file = AppCx::acquire().get_endpoints().await?;
 
-                let res = serde_json::to_value(simple_endpoints_by_file).map_err(|err| {
-                    RequestError::Other(eyre!(err).wrap_err("Cannot serialize endpoints."))
-                })?;
+                let res = serde_json::to_value(simple_endpoints_by_file)
+                    .wrap_err("Cannot serialize endpoints.")?;
 
                 *response.body_mut() = Some(BodyValue::Json(res));
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             EndpointsManagerOperation::New => {
                 let req_body = Bytes::from_vec(
                     body.collect()
                         .await
                         .map_err(|err| {
-                            RequestError::Expected(
+                            RequestError::new(
                                 StatusCode::INTERNAL_SERVER_ERROR,
                                 format!("Cannot get request's body. {}", err).into(),
                             )
@@ -117,7 +96,7 @@ impl AnyHttpExecutor for EndpointsManager {
 
                 let simple_endpoint =
                     serde_json::from_slice::<SimpleEndpoint>(&req_body).map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::BAD_REQUEST,
                             format!("Cannot deserialize endpoint. {}", err).to_compact_string(),
                         )
@@ -129,7 +108,7 @@ impl AnyHttpExecutor for EndpointsManager {
                 };
 
                 if !target_file.ends_with(".json") {
-                    Err(RequestError::Expected(
+                    Err(RequestError::new(
                         StatusCode::BAD_REQUEST,
                         format!("Target file {} doesn't end with `.json`.", target_file)
                             .to_compact_string(),
@@ -140,27 +119,19 @@ impl AnyHttpExecutor for EndpointsManager {
                     .add_endpoint(target_file, simple_endpoint)
                     .await
                     .map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::BAD_REQUEST,
                             format!("{}. Operation might have been partially completed.", err)
                                 .to_compact_string(),
                         )
                     })?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             EndpointsManagerOperation::Set => {
                 let req_body = &body
                     .collect()
                     .await
                     .map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::INTERNAL_SERVER_ERROR,
                             format!("Cannot get request's body. {}", err).into(),
                         )
@@ -170,7 +141,7 @@ impl AnyHttpExecutor for EndpointsManager {
 
                 let simple_endpoint_id = match request_params.get("endpoint_id") {
                     Some(ParamValue::Client(Some(id))) => id.to_owned(),
-                    _ => Err(RequestError::Expected(
+                    _ => Err(RequestError::new(
                         StatusCode::BAD_REQUEST,
                         format!("Endpoint's id to delete was not specified.").to_compact_string(),
                     ))?,
@@ -178,7 +149,7 @@ impl AnyHttpExecutor for EndpointsManager {
 
                 let simple_endpoint_patch = serde_json::from_slice::<SimpleEndpointPatch>(req_body)
                     .map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::BAD_REQUEST,
                             format!("Cannot deserialize endpoint's patch. {}", err)
                                 .to_compact_string(),
@@ -189,25 +160,17 @@ impl AnyHttpExecutor for EndpointsManager {
                     .set_endpoint(simple_endpoint_id, simple_endpoint_patch)
                     .await
                     .map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::BAD_REQUEST,
                             format!("{}. Operation might have been partially completed.", err)
                                 .to_compact_string(),
                         )
                     })?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             EndpointsManagerOperation::Delete => {
                 let simple_endpoint_id = match request_params.get("id") {
                     Some(ParamValue::Client(Some(id))) => id.to_owned(),
-                    _ => Err(RequestError::Expected(
+                    _ => Err(RequestError::new(
                         StatusCode::BAD_REQUEST,
                         format!("Endpoint id to delete was not specified.").to_compact_string(),
                     ))?,
@@ -217,31 +180,18 @@ impl AnyHttpExecutor for EndpointsManager {
                     .delete_endpoint(simple_endpoint_id)
                     .await
                     .map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::BAD_REQUEST,
                             format!("{}. Operation might have been partially completed.", err)
                                 .to_compact_string(),
                         )
                     })?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
-            EndpointsManagerOperation::Discover => {
-                let endpoints =
-                    AppCx::acquire()
-                        .build_runtime_endpoints()
-                        .await
-                        .map_err(|err| {
-                            RequestError::Other(err.wrap_err(
-                                "There was an issue while discovering database's endpoints.",
-                            ))
-                        })?;
+            EndpointsManagerOperation::Generate => {
+                let endpoints = AppCx::acquire()
+                    .build_runtime_endpoints()
+                    .await
+                    .wrap_err("There was an issue while discovering database's endpoints.")?;
 
                 // Add the endpoint to the runtime context.
                 {
@@ -251,15 +201,15 @@ impl AnyHttpExecutor for EndpointsManager {
 
                 // Rebuild the router.
                 RuntimeCx::acquire().build_router().await?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
         }
+
+        Ok((
+            PipelineCx {
+                request,
+                response: Some(response),
+            },
+            PipelineAction::Continue(None),
+        ))
     }
 }

@@ -18,7 +18,7 @@ pub use new::*;
 pub use simple_endpoint::*;
 pub use static_service::*;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::env::current_dir;
 use std::fmt::Debug;

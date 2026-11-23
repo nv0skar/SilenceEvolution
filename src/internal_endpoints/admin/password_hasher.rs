@@ -42,11 +42,12 @@ impl AnyHttpExecutor for PasswordHasherStep {
             .to_owned()
             .unwrap();
 
-        let Some(backend) = auth.backends().first() else {
+        let Some(backend) = auth.backends().iter().next() else {
             unreachable!()
         };
 
         let Ok(mysql_auth) = backend
+            .method()
             .to_owned()
             .into_arc_any()
             .downcast::<waveless_sql::auth::mysql::MySQLSimpleAuthentication>()
@@ -59,9 +60,9 @@ impl AnyHttpExecutor for PasswordHasherStep {
                 let hasher =
                     Argon2::new(Algorithm::default(), Version::default(), Params::default());
 
-                let hashed_password = hasher.hash_password(password.as_bytes()).map_err(|err| {
-                    RequestError::Other(eyre!(err).wrap_err("Cannot hash password."))
-                })?;
+                let hashed_password = hasher
+                    .hash_password(password.as_bytes())
+                    .wrap_err("Cannot hash password.")?;
 
                 *password = hashed_password.to_string().into();
             }

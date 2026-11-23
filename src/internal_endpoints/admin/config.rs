@@ -42,19 +42,9 @@ impl AnyHttpExecutor for ConfigManager {
             HttpMethod::Get => {
                 let config = AppCx::acquire().config().read().await.to_owned();
 
-                let res = serde_json::to_value(config).map_err(|err| {
-                    RequestError::Other(eyre!(err).wrap_err("Cannot serialize endpoints"))
-                })?;
+                let res = serde_json::to_value(config).wrap_err("Cannot serialize endpoints")?;
 
                 *response.body_mut() = Some(BodyValue::Json(res));
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             HttpMethod::Put => {
                 {
@@ -65,7 +55,7 @@ impl AnyHttpExecutor for ConfigManager {
                             .collect()
                             .await
                             .map_err(|err| {
-                                RequestError::Expected(
+                                RequestError::new(
                                     StatusCode::INTERNAL_SERVER_ERROR,
                                     format!("Cannot get request's body. {}", err).into(),
                                 )
@@ -74,7 +64,7 @@ impl AnyHttpExecutor for ConfigManager {
                             .to_vec(),
                     )
                     .map_err(|err| {
-                        RequestError::Expected(
+                        RequestError::new(
                             StatusCode::BAD_REQUEST,
                             format!("Cannot deserialize config's patch. {}", err)
                                 .to_compact_string(),
@@ -85,16 +75,16 @@ impl AnyHttpExecutor for ConfigManager {
                 }
 
                 AppCx::acquire().set_config().await?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             _ => unreachable!(),
         }
+
+        Ok((
+            PipelineCx {
+                request,
+                response: Some(response),
+            },
+            PipelineAction::Continue(None),
+        ))
     }
 }

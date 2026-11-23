@@ -35,7 +35,7 @@ impl AnyHttpExecutor for TokenIssuer {
         let mut response = response.unwrap_or_default();
 
         let ParamValue::Client(Some(user_id)) =
-            request_params.get("id").ok_or(RequestError::Expected(
+            request_params.get("id").ok_or(RequestError::new(
                 StatusCode::BAD_REQUEST,
                 "The `user_id` wasn't provided.".into(),
             ))?
@@ -45,7 +45,11 @@ impl AnyHttpExecutor for TokenIssuer {
 
         // Issue the new token.
         let token = InMemoryToken
-            .new(_db_conns, user_id.parse::<UserId>().unwrap())
+            .new(
+                _db_conns,
+                user_id.parse::<UserId>().unwrap(),
+                Some("main".into()),
+            )
             .await?;
 
         *response.body_mut() = Some(BodyValue::Json(json!({"token": token})));

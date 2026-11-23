@@ -12,7 +12,9 @@ use waveless_sql::databases::mysql::*;
 
 use sea_orm::QueryResult;
 
-static SESSION_MANAGER: OnceCell<DashMap<CompactString, UserId>> = OnceCell::const_new();
+static SESSION_MANAGER: OnceCell<
+    DashMap<CompactString, (UserId, Option<AuthenticationBackendId>)>,
+> = OnceCell::const_new();
 
 /// In-memory session backend.
 /// NOTE: tokens are valid as slong as they are in-memory, they don't expire.
@@ -36,17 +38,28 @@ impl DatabaseConsumer for InMemoryToken {
 #[typetag::serde(name = "InMemoryToken")]
 #[async_trait]
 impl AnySessionMethod for InMemoryToken {
-    async fn check(&self, _: DbConns, token: CompactString) -> Result<Option<UserId>> {
+    async fn check(
+        &self,
+        _: DbConns,
+        token: CompactString,
+    ) -> Result<Option<(UserId, Option<AuthenticationBackendId>)>> {
         let sessions = SESSION_MANAGER.get_or_init(async || DashMap::new()).await;
 
-        if let Some(user_id) = sessions.get(&token) {
-            Ok(Some(*user_id.value()))
+        if let Some(val) = sessions.get(&token) {
+            let (user_id, auth_backend) = val.value();
+
+            Ok(Some((*user_id, auth_backend.to_owned())))
         } else {
             Ok(None)
         }
     }
 
-    async fn new(&self, db_conns: DbConns, user_id: UserId) -> Result<CompactString> {
+    async fn new(
+        &self,
+        db_conns: DbConns,
+        user_id: UserId,
+        auth_backend: Option<AuthenticationBackendId>,
+    ) -> Result<CompactString> {
         let sessions = SESSION_MANAGER.get_or_init(async || DashMap::new()).await;
 
         // Check whether the user exists.
@@ -80,12 +93,10 @@ impl AnySessionMethod for InMemoryToken {
                 CheapVec::from_iter([user_id.to_string().into()]),
             ))
             .await
-            .map_err(|err| {
-                RequestError::Other(err.wrap_err(format!(
-                    "Cannot determine whether the user with id `{}` exists.",
-                    user_id
-                )))
-            })?
+            .wrap_err(format!(
+                "Cannot determine whether the user with id `{}` exists.",
+                user_id
+            ))?
         else {
             unreachable!()
         };
@@ -95,7 +106,7 @@ impl AnySessionMethod for InMemoryToken {
         })?;
 
         if res.is_empty() {
-            Err(RequestError::Expected(
+            Err(RequestError::new(
                 StatusCode::BAD_REQUEST,
                 "The provided user does not exist.".into(),
             ))?;
@@ -103,7 +114,7 @@ impl AnySessionMethod for InMemoryToken {
 
         let token: CompactString = Alphanumeric.sample_string(&mut rand::rng(), 32).into();
 
-        sessions.insert(token.to_owned(), user_id);
+        sessions.insert(token.to_owned(), (user_id, auth_backend));
 
         Ok(token)
     }
@@ -118,19 +129,19 @@ impl AnySessionMethod for InMemoryToken {
 
         match token {
             Some(token) => {
-                sessions.remove_if(&token, |_, val| *val == user_id);
+                sessions.remove_if(&token, |_, (val, _)| *val == user_id);
             }
             None => {
                 sessions
                     .iter()
-                    .filter(|entry| *entry.value() == user_id)
+                    .filter(|entry| entry.value().0 == user_id)
                     .for_each(|entry| {
                         let _ = sessions.remove(entry.key());
                     });
             }
         };
 
-        todo!()
+        Ok(())
     }
 
     async fn remove_expired(&self, _db_conn: Arc<dyn AnyDatabaseConnection>) -> Result<()> {

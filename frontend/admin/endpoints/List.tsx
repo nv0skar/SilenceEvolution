@@ -147,7 +147,7 @@ export default (props: RouteSectionProps) => {
                                         class="btn text-sm self-end text-right ml-auto"
                                         onClick={async (_) => {
                                             const req = await fetch(
-                                                "/api/internal/admin/endpoints/discover",
+                                                "/api/internal/admin/endpoints/generate",
                                             );
 
                                             if (req.ok) refetch();
@@ -158,7 +158,7 @@ export default (props: RouteSectionProps) => {
                                                 });
                                         }}
                                     >
-                                        Reload discovered endpoints
+                                        Regenerate endpoints
                                     </button>
                                     <A
                                         class="btn text-sm self-end text-right ml-auto"

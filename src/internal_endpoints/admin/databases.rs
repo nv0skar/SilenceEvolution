@@ -76,27 +76,16 @@ impl AnyHttpExecutor for DatabasesManager {
                     })
                     .collect::<HashMap<_, _>>();
 
-                let serialized_db = serde_json::to_value(db_conns).map_err(|err| {
-                    RequestError::Other(
-                        eyre!(err).wrap_err("Cannot serialize databases connections."),
-                    )
-                })?;
+                let serialized_db = serde_json::to_value(db_conns)
+                    .wrap_err("Cannot serialize databases connections.")?;
 
                 *response.body_mut() = Some(BodyValue::Json(serialized_db));
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             DatabasesManagerOperation::Get => {
                 let db_manager = databases::DatabasesManager::acquire();
 
                 let Some(ParamValue::Client(Some(id))) = request_params.get("id") else {
-                    Err(RequestError::Expected(
+                    Err(RequestError::new(
                         StatusCode::BAD_REQUEST,
                         "Missing database id param.".into(),
                     ))?
@@ -118,14 +107,6 @@ impl AnyHttpExecutor for DatabasesManager {
                     "username": &mysql_conn_options.get_username(),
                     "db": &mysql_conn_options.get_database(),
                 })));
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             DatabasesManagerOperation::Load => {
                 let db_manager = databases::DatabasesManager::acquire();
@@ -144,7 +125,7 @@ impl AnyHttpExecutor for DatabasesManager {
                     request_params.get("db"),
                 )
                 else {
-                    Err(RequestError::Expected(
+                    Err(RequestError::new(
                         StatusCode::BAD_REQUEST,
                         "Missing request params.".into(),
                     ))?
@@ -155,7 +136,7 @@ impl AnyHttpExecutor for DatabasesManager {
                     false,
                     Arc::new(MySQLDbConnectionConfig::new(
                         host.to_string().parse::<SocketAddr>().map_err(|_| {
-                            RequestError::Expected(
+                            RequestError::new(
                                 StatusCode::BAD_REQUEST,
                                 "Cannot parse the host.".into(),
                             )
@@ -169,34 +150,18 @@ impl AnyHttpExecutor for DatabasesManager {
                 );
 
                 db_manager.load(db_conn_config).await?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             DatabasesManagerOperation::Remove => {
                 let db_manager = databases::DatabasesManager::acquire();
 
                 let Some(ParamValue::Client(Some(id))) = request_params.get("id") else {
-                    Err(RequestError::Expected(
+                    Err(RequestError::new(
                         StatusCode::BAD_REQUEST,
                         "Missing database id param.".into(),
                     ))?
                 };
 
                 db_manager.remove(id).await?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
             DatabasesManagerOperation::Restore => {
                 let app_cx = AppCx::acquire();
@@ -206,15 +171,15 @@ impl AnyHttpExecutor for DatabasesManager {
                 db_manager
                     .load_all(app_cx.config().read().await.into_database_config())
                     .await?;
-
-                Ok((
-                    PipelineCx {
-                        request,
-                        response: Some(response),
-                    },
-                    PipelineAction::Continue(None),
-                ))
             }
         }
+
+        Ok((
+            PipelineCx {
+                request,
+                response: Some(response),
+            },
+            PipelineAction::Continue(None),
+        ))
     }
 }

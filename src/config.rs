@@ -86,6 +86,9 @@ pub struct UsersTableFields {
 
     #[arg(long = "users_password_field", help = "Set the `password` field.")]
     password: CompactString,
+
+    #[arg(long = "users_active_field", help = "Set the `active` field.")]
+    active: Option<CompactString>,
 }
 
 impl Default for UsersTableFields {
@@ -95,6 +98,7 @@ impl Default for UsersTableFields {
             name: "name".into(),
             email: "email".into(),
             password: "password".into(),
+            active: None,
         }
     }
 }
@@ -191,16 +195,22 @@ impl Config {
                 self.into_database_config(),
                 match self.internal_params() {
                     Some(internal_params) => Some(Authentication::new(
-                        CheapVec::from_vec(vec![Arc::new(MySQLSimpleAuthentication::new(
-                            Some("internal".into()),
-                            internal_params.users.table.to_owned(),
-                            internal_params.users.fields.id.to_owned(),
-                            internal_params.users.fields.email.to_owned(),
-                            internal_params.users.fields.password.to_owned(),
-                            PasswordHashBackend::Plain,
-                            CheapVec::from_vec(vec![internal_params.users.fields.name.to_owned()]),
-                            None,
-                        ))]),
+                        HashSet::from_iter([AuthenticationBackend::new(
+                            "main".into(),
+                            Arc::new(MySQLSimpleAuthentication::new(
+                                Some("internal".into()),
+                                internal_params.users.table.to_owned(),
+                                internal_params.users.fields.id.to_owned(),
+                                internal_params.users.fields.email.to_owned(),
+                                internal_params.users.fields.password.to_owned(),
+                                PasswordHashBackend::Plain,
+                                internal_params.users.fields.active.to_owned(),
+                                CheapVec::from_vec(vec![
+                                    internal_params.users.fields.name.to_owned(),
+                                ]),
+                                None,
+                            )),
+                        )]),
                         Arc::new(backend::session_manager::InMemoryToken),
                         Some(Arc::new(MySQLRole::new(
                             Some("internal".into()),

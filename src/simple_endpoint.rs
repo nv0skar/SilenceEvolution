@@ -12,16 +12,7 @@ use waveless_sql::http_executor::{mysql::*, *};
 /// Silence's endpoint.
 /// TODO: add documentation.
 #[derive(
-    Clone,
-    PartialEq,
-    Constructor,
-    Builder,
-    Serialize,
-    Deserialize,
-    Getters,
-    MutGetters,
-    Patch,
-    Debug,
+    Clone, Constructor, Builder, Serialize, Deserialize, Getters, MutGetters, Patch, Debug,
 )]
 #[patch(attribute(derive(Clone, PartialEq, Constructor, Builder, Serialize, Deserialize, Debug)))]
 #[builder(default, pattern = "mutable", setter(strip_option))]
@@ -63,16 +54,26 @@ pub struct SimpleEndpoint {
     #[serde(default, skip_serializing_if = "should_skip_cheapvec")]
     allowed_roles: CheapVec<CompactString, 0>,
 
+    /// Metadata.
+    #[serde(default, skip_serializing_if = "should_skip_option")]
+    metadata: Option<MetadataKind>,
+
+    /// Reachability.
+    #[serde(default = "defaults_true", skip_serializing_if = "not_skip")]
+    reachability: bool,
+
     #[serde(default, skip_serializing_if = "auto_generated_skip")]
     auto_generated: bool,
 }
 
-fn not_skip(value: &bool) -> bool {
-    should_skip(&(!*value))
-}
-
 fn auto_generated_skip(value: &bool) -> bool {
     not_skip(value)
+}
+
+impl PartialEq for SimpleEndpoint {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl Default for SimpleEndpoint {
@@ -92,6 +93,8 @@ impl Default for SimpleEndpoint {
             require_auth: false,
             inject_auth_metadata: false,
             allowed_roles: CheapVec::new(),
+            metadata: None,
+            reachability: true,
             auto_generated: false,
         }
     }
@@ -174,6 +177,8 @@ impl<'a> TryFrom<&'a Endpoint> for SimpleEndpoint {
                 AuthLevel::InjectWhenAvailable => true,
                 _ => false,
             },
+            metadata: endpoint.metadata().to_owned(),
+            reachability: *endpoint.reachability(),
             auto_generated: http_target
                 .map(|http_target| *http_target.auto_generated())
                 .unwrap_or_default(),
@@ -229,6 +234,12 @@ impl<'a> Into<Endpoint> for &'a SimpleEndpoint {
 
         endpoint_builder
             .execution_target(ExecutionTarget::Http(http_target_builder.build().unwrap()));
+
+        if let Some(metadata) = self.metadata().to_owned() {
+            endpoint_builder.metadata(metadata);
+        };
+
+        endpoint_builder.reachability(self.reachability);
 
         endpoint_builder.build().unwrap()
     }
